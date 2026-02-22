@@ -30,4 +30,5 @@ EST = ZoneInfo("America/New_York")
 
 # --- Databento (same as your historical data) ---
 DATASET = "GLBX.MDP3"
-SCHEMA = "mbp-10"
+# Default mbp-1 (L1) for Standard plan — no MBP-10, so paid usage stays off. Set DATABENTO_SCHEMA=mbp-10 only if you have MBP-10.
+SCHEMA = os.environ.get("DATABENTO_SCHEMA", "mbp-1").strip() or "mbp-1"

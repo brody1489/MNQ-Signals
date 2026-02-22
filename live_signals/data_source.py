@@ -100,6 +100,7 @@ def backfill_today_rth() -> tuple:
         return None, None
     start_utc = start_et.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
     end_utc = now_et.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    path = None
     try:
         with tempfile.NamedTemporaryFile(suffix=".dbn", delete=False) as f:
             path = f.name
@@ -118,8 +119,9 @@ def backfill_today_rth() -> tuple:
         Path(path).unlink(missing_ok=True)
         return bars, trades_df
     except Exception as e:
-        if Path(path).exists():
+        if path and Path(path).exists():
             Path(path).unlink(missing_ok=True)
+        print(f"[backfill] Databento error: {e}", flush=True)
         return None, None
 
 
@@ -155,9 +157,10 @@ def poll_latest_bar(start_ts: pd.Timestamp) -> tuple:
         last = bars.iloc[-1]
         last_ts = bars.index[-1]
         return last, last_ts
-    except Exception:
+    except Exception as e:
         if path and Path(path).exists():
             Path(path).unlink(missing_ok=True)
+        print(f"[poll_latest_bar] Databento error: {e}", flush=True)
         return None, None
 
 
@@ -198,7 +201,8 @@ def get_recent_bars_and_running(
         if len(new_completed) > 0:
             new_completed = new_completed[new_completed.index > last_completed_bar_ts]
         return new_completed, running_bar, running_bar_ts
-    except Exception:
+    except Exception as e:
         if path and Path(path).exists():
             Path(path).unlink(missing_ok=True)
+        print(f"[get_recent_bars_and_running] Databento error: {e}", flush=True)
         return pd.DataFrame(), None, None

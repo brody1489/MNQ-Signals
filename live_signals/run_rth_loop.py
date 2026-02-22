@@ -40,5 +40,8 @@ if __name__ == "__main__":
             _sleep_until(next_start)
             continue
         print("RTH started. Running live signal loop.")
-        run.main()
+        try:
+            run.main()
+        except Exception as e:
+            print(f"Live loop error (will retry next session): {e}", flush=True)
         print("RTH ended. Sleeping until next session.")
