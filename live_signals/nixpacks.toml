@@ -1,0 +1,11 @@
+# Force Python build plan so Railway doesn't get confused by monorepo
+providers = ["python"]
+
+[phases.setup]
+nixPkgs = ["python311"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[start]
+cmd = "python run_rth_loop.py"
