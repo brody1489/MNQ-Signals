@@ -159,3 +159,46 @@ def poll_latest_bar(start_ts: pd.Timestamp) -> tuple:
         if path and Path(path).exists():
             Path(path).unlink(missing_ok=True)
         return None, None
+
+
+def get_recent_bars_and_running(
+    session_start_ts: pd.Timestamp, last_completed_bar_ts: pd.Timestamp
+) -> tuple:
+    """
+    Fetch last 2 minutes of data; return (new_completed_bars_df, running_bar_series, running_bar_ts).
+    Used for V2: running bar = current minute so far (partial). New completed = bars we don't have yet.
+    """
+    if not API_KEY or db is None:
+        return pd.DataFrame(), None, None
+    now_et = datetime.now(EST)
+    end_utc = now_et.astimezone(timezone.utc)
+    start_utc = end_utc - timedelta(minutes=2)
+    start_str = start_utc.strftime("%Y-%m-%dT%H:%M:%S")
+    end_str = end_utc.strftime("%Y-%m-%dT%H:%M:%S")
+    path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".dbn", delete=False) as f:
+            path = f.name
+        client = db.Historical(API_KEY)
+        client.timeseries.get_range(
+            dataset=DATASET, start=start_str, end=end_str,
+            symbols=SYMBOL_RAW, schema=SCHEMA, stype_in="raw_symbol", path=path,
+        )
+        store = db.DBNStore.from_file(path)
+        bars, _ = _build_bars_from_replay(store, BAR_SEC)
+        Path(path).unlink(missing_ok=True)
+        path = None
+        if bars is None or len(bars) == 0:
+            return pd.DataFrame(), None, None
+        # Last bar is the "running" (current minute, possibly partial)
+        running_bar_ts = bars.index[-1]
+        running_bar = bars.iloc[-1]
+        # New completed = bars that are strictly after last_completed_bar_ts
+        new_completed = bars.iloc[:-1]
+        if len(new_completed) > 0:
+            new_completed = new_completed[new_completed.index > last_completed_bar_ts]
+        return new_completed, running_bar, running_bar_ts
+    except Exception:
+        if path and Path(path).exists():
+            Path(path).unlink(missing_ok=True)
+        return pd.DataFrame(), None, None

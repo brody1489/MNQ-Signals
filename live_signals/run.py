@@ -1,8 +1,7 @@
 """
-Live signals: one command to run. Backfills from 9:30 ET if started late, then polls
-each minute for new bar, runs strategy, prints LONG / TAKE PROFIT with price and PnL.
-Optional: set DISCORD_WEBHOOK_URL to post each signal to a Discord channel.
-Set DATABENTO_API_KEY before running.
+Live signals: V1 (1-min bars) and V2 (running bar, poll every 10s) run in parallel.
+Same params, same strategy — V1 acts at bar close, V2 acts as soon as the running bar satisfies.
+Discord and CSV tag each message with V1 or V2. Set DATABENTO_API_KEY and DISCORD_WEBHOOK_URL.
 """
 import json
 import sys
@@ -14,8 +13,11 @@ from datetime import datetime, timezone
 import pandas as pd
 
 from config import API_KEY, BAR_SEC, RTH_START_ET, RTH_END_ET, EST, DISCORD_WEBHOOK_URL
-from data_source import backfill_today_rth, poll_latest_bar
+from data_source import backfill_today_rth, get_recent_bars_and_running
 from strategy import process_bar
+
+# How often to poll for V2 (running bar). V1 still only acts at 1-min bar close.
+V2_POLL_SEC = 10
 
 
 def _est_12hr(ts) -> str:
@@ -44,7 +46,6 @@ def in_rth() -> bool:
 
 
 def _send_discord(message: str) -> None:
-    """Post message to Discord webhook if DISCORD_WEBHOOK_URL is set. No extra deps."""
     if not DISCORD_WEBHOOK_URL:
         return
     try:
@@ -60,24 +61,32 @@ def _send_discord(message: str) -> None:
         pass
 
 
-def _ensure_trade_log(base: Path):
-    """Append-only CSV: date, time_est, signal, price, entry_price, pnl_pts."""
+def _ensure_trade_log(base: Path) -> Path:
+    """Append-only CSV: date, time_est, version, signal, price, entry_price, pnl_pts."""
     data_dir = base / "data"
     data_dir.mkdir(exist_ok=True)
     log_path = data_dir / "live_trades.csv"
     if not log_path.exists():
-        log_path.write_text("date,time_est,signal,price,entry_price,pnl_pts\n")
+        log_path.write_text("date,time_est,version,signal,price,entry_price,pnl_pts\n")
     return log_path
 
 
-def _log_trade(log_path: Path, ts, signal: str, price: float, entry_price: float = None, pnl_pts: float = None):
+def _log_trade(
+    log_path: Path,
+    ts,
+    signal: str,
+    price: float,
+    version: str,
+    entry_price: float = None,
+    pnl_pts: float = None,
+) -> None:
     try:
         ts_est = ts.tz_convert(EST) if hasattr(ts, "tz_convert") else ts
         date = ts_est.strftime("%Y-%m-%d")
         time_est = ts_est.strftime("%H:%M:%S")
         ep = "" if entry_price is None else f"{entry_price:.2f}"
         pnl = "" if pnl_pts is None else f"{pnl_pts:.2f}"
-        line = f"{date},{time_est},{signal},{price:.2f},{ep},{pnl}\n"
+        line = f"{date},{time_est},{version},{signal},{price:.2f},{ep},{pnl}\n"
         with open(log_path, "a") as f:
             f.write(line)
     except Exception:
@@ -91,11 +100,10 @@ def main():
         print("params.json not found. Exiting.")
         sys.exit(1)
     params = json.loads(params_path.read_text())
-    # Use proven backtest params if present (70–80% WR, lunch skip, etc.)
     best_path = base.parent / "orderflow_strategy" / "data" / "best_params_v2.json"
     if best_path.exists():
         params = json.loads(best_path.read_text())
-        print("Using best_params_v2.json from backtest (proven config).")
+        print("Using best_params_v2.json from backtest.")
     log_path = _ensure_trade_log(base)
 
     if not API_KEY:
@@ -106,17 +114,19 @@ def main():
         print("Outside RTH (9:30 AM - 4:00 PM ET). Start during session.")
         sys.exit(1)
 
-    # Backfill from 9:30 to now so we have context
     bars, _ = backfill_today_rth()
     if bars is None or len(bars) == 0:
         print("No backfill data (maybe before 9:30 or API issue). Exiting.")
         sys.exit(1)
 
-    state = {}
+    session_start = bars.index[0]
     last_bar_ts = bars.index[-1]
-    # Ensure we have a timezone for bar index alignment (strategy uses bar index = position)
-    print("Backfill loaded:", len(bars), "bars from", bars.index[0], "to", last_bar_ts)
-    print("Watching for signals. Output: LONG | SHORT | TAKE PROFIT with time (EST) and MNQ price.")
+    state_v1 = {}
+    state_v2 = {}
+
+    print("Backfill loaded:", len(bars), "bars from", session_start, "to", last_bar_ts)
+    print("V1 = 1-min bar close. V2 = running bar (poll every", V2_POLL_SEC, "s). Same params.")
+    print("Discord/CSV: V1 LONG ..., V1 TAKE PROFIT ..., V2 LONG ..., etc.")
     print("---")
 
     while True:
@@ -126,46 +136,65 @@ def main():
             print("RTH over. Stopping.")
             break
 
-        bar_series, bar_ts = poll_latest_bar(bars.index[0])
-        if bar_ts is not None:
-            # Only append if this bar is newer than last
-            if bar_ts > last_bar_ts:
-                new_row = pd.DataFrame([bar_series], index=[bar_ts])
-                bars = pd.concat([bars, new_row])
-                current_bar_idx = len(bars) - 1
-                signal, state = process_bar(bars, current_bar_idx, params, state, BAR_SEC)
-                price = float(bar_series.get("mid", 0))
+        new_completed, running_bar, running_bar_ts = get_recent_bars_and_running(session_start, last_bar_ts)
+
+        # Append new completed bar(s) to shared history
+        if new_completed is not None and len(new_completed) > 0:
+            bars = pd.concat([bars, new_completed])
+            last_bar_ts = bars.index[-1]
+            # V1: evaluate only at the new bar(s) — one at a time
+            for i in range(len(bars) - len(new_completed), len(bars)):
+                current_bar_idx = i
+                signal, state_v1 = process_bar(bars, current_bar_idx, params, state_v1, BAR_SEC)
+                bar_ts = bars.index[current_bar_idx]
+                price = float(bars["mid"].iloc[current_bar_idx])
                 ts_str = _est_12hr(bar_ts)
-
                 if signal == "LONG":
-                    msg = f"LONG  {ts_str}  MNQ {price}"
+                    msg = f"V1 LONG  {ts_str}  MNQ {price}"
                     print(msg)
                     _send_discord(msg)
-                    _log_trade(log_path, bar_ts, "LONG", price)
+                    _log_trade(log_path, bar_ts, "LONG", price, "V1")
                 elif signal == "SHORT":
-                    msg = f"SHORT  {ts_str}  MNQ {price}"
+                    msg = f"V1 SHORT  {ts_str}  MNQ {price}"
                     print(msg)
                     _send_discord(msg)
-                    _log_trade(log_path, bar_ts, "SHORT", price)
+                    _log_trade(log_path, bar_ts, "SHORT", price, "V1")
                 elif signal == "TAKE_PROFIT":
-                    entry_price = state.get("entry_price")
+                    entry_price = state_v1.get("entry_price")
                     pnl_pts = (price - entry_price) / 1.0 if entry_price is not None else None
-                    if pnl_pts is not None:
-                        pnl_str = f"  entry {entry_price:.2f}  →  {pnl_pts:+.2f} pts"
-                    else:
-                        pnl_str = ""
-                    msg = f"TAKE PROFIT  {ts_str}  MNQ {price}{pnl_str}"
+                    pnl_str = f"  entry {entry_price:.2f}  →  {pnl_pts:+.2f} pts" if pnl_pts is not None else ""
+                    msg = f"V1 TAKE PROFIT  {ts_str}  MNQ {price}{pnl_str}"
                     print(msg)
                     _send_discord(msg)
-                    _log_trade(log_path, bar_ts, "EXIT", price, entry_price, pnl_pts)
+                    _log_trade(log_path, bar_ts, "EXIT", price, "V1", entry_price, pnl_pts)
 
-                last_bar_ts = bar_ts
+        # V2: evaluate every poll with completed bars + running bar
+        if running_bar is not None and running_bar_ts is not None:
+            bars_v2 = pd.concat([bars, pd.DataFrame([running_bar], index=[running_bar_ts])])
+            current_bar_idx = len(bars_v2) - 1
+            signal, state_v2 = process_bar(bars_v2, current_bar_idx, params, state_v2, BAR_SEC)
+            price = float(running_bar.get("mid", 0))
+            ts_str = _est_12hr(running_bar_ts)
+            if signal == "LONG":
+                msg = f"V2 LONG  {ts_str}  MNQ {price}"
+                print(msg)
+                _send_discord(msg)
+                _log_trade(log_path, running_bar_ts, "LONG", price, "V2")
+            elif signal == "SHORT":
+                msg = f"V2 SHORT  {ts_str}  MNQ {price}"
+                print(msg)
+                _send_discord(msg)
+                _log_trade(log_path, running_bar_ts, "SHORT", price, "V2")
+            elif signal == "TAKE_PROFIT":
+                entry_price = state_v2.get("entry_price")
+                pnl_pts = (price - entry_price) / 1.0 if entry_price is not None else None
+                pnl_str = f"  entry {entry_price:.2f}  →  {pnl_pts:+.2f} pts" if pnl_pts is not None else ""
+                msg = f"V2 TAKE PROFIT  {ts_str}  MNQ {price}{pnl_str}"
+                print(msg)
+                _send_discord(msg)
+                _log_trade(log_path, running_bar_ts, "EXIT", price, "V2", entry_price, pnl_pts)
 
-        # Sleep until next minute boundary so we poll once per bar
-        sleep_sec = BAR_SEC - (time.time() % BAR_SEC)
-        if sleep_sec > 55:
-            sleep_sec = 5  # avoid sleeping too long past the minute
-        time.sleep(min(sleep_sec, 30))
+        time.sleep(V2_POLL_SEC)
 
 
 if __name__ == "__main__":
