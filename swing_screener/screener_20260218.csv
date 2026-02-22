@@ -1,0 +1,7 @@
+Date,Ticker,Score,Close,Pct_Down_20d,Support,Resistance,Upside_Pct,Sector,Stock_vs_Sector_20d,Earnings_Days
+2026-02-18,C,8.6,116.27,7.1,115.77,122.2,5.1,Financials,4.3,55
+2026-02-18,NTRS,6.9,147.52,6.4,140.39,155.31,5.3,Financials,3.8,62
+2026-02-18,APH,6.6,147.73,11.6,130.62,167.04,13.1,Information Technology,-2.4,70
+2026-02-18,IBKR,6.2,74.9,5.4,69.33,78.8,5.2,Financials,0.4,55
+2026-02-18,TFC,5.7,52.69,5.3,48.34,55.64,5.6,Financials,8.0,58
+2026-02-18,HLT,4.8,315.88,5.4,287.69,,,Consumer Discretionary,10.2,77

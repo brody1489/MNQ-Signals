@@ -1,0 +1,147 @@
+@import "react-grid-layout/css/styles.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+:root {
+  --background: #0a0c0f;
+  --foreground: #e4e6ea;
+  --card: #111318;
+  --card-foreground: #e4e6ea;
+  --border: #1e232a;
+  --border-subtle: #171b21;
+  --accent: #3b82f6;
+  --accent-muted: rgba(59, 130, 246, 0.15);
+  --positive: #22c55e;
+  --negative: #ef4444;
+}
+
+html.light {
+  --background: #f4f5f7;
+  --foreground: #1a1d24;
+  --card: #ffffff;
+  --card-foreground: #1a1d24;
+  --border: #e2e5ea;
+  --border-subtle: #e8eaed;
+  --accent: #2563eb;
+  --accent-muted: rgba(37, 99, 235, 0.12);
+  --positive: #16a34a;
+  --negative: #dc2626;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-feature-settings: "tnum", "ss01", "ss02";
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Scrollbar styling for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3d4450;
+}
+
+/* react-grid-layout overrides */
+.react-grid-item.react-grid-placeholder {
+  background: var(--accent);
+  opacity: 0.2;
+  border-radius: 4px;
+  z-index: 2;
+}
+.react-grid-item > .react-resizable-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 28px;
+  height: 28px;
+  cursor: se-resize;
+  background: linear-gradient(135deg, transparent 50%, var(--border) 50%);
+  background-size: 100% 100%;
+}
+.react-grid-item > .react-resizable-handle::after {
+  content: "";
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--foreground);
+  border-bottom: 2px solid var(--foreground);
+  opacity: 0.6;
+}
+.react-grid-item:hover > .react-resizable-handle {
+  opacity: 1;
+}
+.react-grid-item-wrapper {
+  height: 100%;
+}
+
+/* react-rnd: free-form dashboard resize handles */
+.react-rnd .react-resizable-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: var(--border);
+  border-radius: 2px;
+}
+.react-rnd .react-resizable-handle-se {
+  right: 0;
+  bottom: 0;
+  cursor: se-resize;
+}
+.react-rnd .react-resizable-handle-s {
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  cursor: s-resize;
+}
+.react-rnd .react-resizable-handle-e {
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: e-resize;
+}
+.react-rnd .react-resizable-handle-w {
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: w-resize;
+}
+.react-rnd .react-resizable-handle-n {
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  cursor: n-resize;
+}
+.react-rnd .react-resizable-handle-ne,
+.react-rnd .react-resizable-handle-nw,
+.react-rnd .react-resizable-handle-sw {
+  width: 10px;
+  height: 10px;
+}
+.react-rnd:hover .react-resizable-handle {
+  background: var(--accent);
+  opacity: 0.8;
+}

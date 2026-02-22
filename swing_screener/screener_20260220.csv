@@ -1,0 +1,4 @@
+Date,Ticker,Score,Close,Pct_Down_20d,Support,Resistance,Upside_Pct,Sector,Stock_vs_Sector_20d,Earnings_Days
+2026-02-20,RCL,7.8,315.09,11.6,314.07,321.85,2.1,Consumer Discretionary,14.7,67
+2026-02-20,TXN,6.6,219.73,5.0,216.13,228.83,4.1,Information Technology,17.3,67
+2026-02-20,MAR,5.7,347.93,6.0,311.57,370.0,6.3,Consumer Discretionary,13.4,74
