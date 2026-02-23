@@ -141,6 +141,41 @@ def main():
         print(f"[WARN] Bars missing columns: {missing}", flush=True)
     else:
         print("Bar columns OK: mid, bid_depth, ask_depth, buy_vol, sell_vol, cob_ask", flush=True)
+    # Strategy needs 60-bar passive lookback + 120-bar BOS search; ensure we have enough
+    need_bars = 20 + max(params.get("passive_lookback_bars", 60), params.get("bos_search_bars", 120))
+    if len(bars) >= need_bars:
+        print(f"Full lookback ready: {len(bars)} bars (need {need_bars} for passive+BOS).", flush=True)
+    else:
+        print(f"[WARN] Only {len(bars)} bars; strategy needs {need_bars} for full passive+BOS.", flush=True)
+    # Run V1 once for the last backfilled bar so we don't miss a setup that completed on it
+    try:
+        idx_last = len(bars) - 1
+        signal, state_v1 = process_bar(bars, idx_last, params, state_v1, BAR_SEC)
+        bar_ts = bars.index[idx_last]
+        price = float(bars["mid"].iloc[idx_last])
+        ts_str = _est_12hr(bar_ts)
+        if signal == "LONG":
+            msg = f"V1 LONG  {ts_str}  MNQ {price}"
+            print(msg, flush=True)
+            _send_discord(msg)
+            _log_trade(log_path, bar_ts, "LONG", price, "V1")
+        elif signal == "SHORT":
+            msg = f"V1 SHORT  {ts_str}  MNQ {price}"
+            print(msg, flush=True)
+            _send_discord(msg)
+            _log_trade(log_path, bar_ts, "SHORT", price, "V1")
+        elif signal == "TAKE_PROFIT":
+            entry_price = state_v1.get("entry_price")
+            pnl_pts = (price - entry_price) / 1.0 if entry_price is not None else None
+            pnl_str = f"  entry {entry_price:.2f}  →  {pnl_pts:+.2f} pts" if pnl_pts is not None else ""
+            msg = f"V1 TAKE PROFIT  {ts_str}  MNQ {price}{pnl_str}"
+            print(msg, flush=True)
+            _send_discord(msg)
+            _log_trade(log_path, bar_ts, "EXIT", price, "V1", entry_price, pnl_pts)
+        else:
+            print("V1 catch-up: no signal on last backfilled bar.", flush=True)
+    except Exception as e:
+        print(f"[V1 catch-up error] {e}", flush=True)
     # One-time Discord test so you see a message and network flow
     if DISCORD_WEBHOOK_URL:
         _send_discord(f"Live signals started. MNQ {SCHEMA}. Bars: {len(bars)}. V1+V2 watching.")
@@ -154,7 +189,7 @@ def main():
         now_et = datetime.now(EST)
         end_et = now_et.replace(hour=RTH_END_ET[0], minute=RTH_END_ET[1], second=0, microsecond=0)
         if now_et >= end_et:
-            print("RTH over. Stopping.")
+            print("RTH over. Stopping.", flush=True)
             break
 
         try:
