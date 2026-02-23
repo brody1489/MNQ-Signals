@@ -106,6 +106,7 @@ def backfill_today_rth() -> tuple:
         print(f"[backfill] Requesting: {start_utc} -> {end_utc} UTC | symbol={SYMBOL_RAW} dataset={DATASET} schema={SCHEMA}", flush=True)
         with tempfile.NamedTemporaryFile(suffix=".dbn", delete=False) as f:
             path = f.name
+        Path(path).unlink(missing_ok=True)
         client = db.Historical(API_KEY)
         client.timeseries.get_range(
             dataset=DATASET,
@@ -158,6 +159,7 @@ def poll_latest_bar(start_ts: pd.Timestamp) -> tuple:
     try:
         with tempfile.NamedTemporaryFile(suffix=".dbn", delete=False) as f:
             path = f.name
+        Path(path).unlink(missing_ok=True)
         client = db.Historical(API_KEY)
         client.timeseries.get_range(
             dataset=DATASET, start=start_str, end=end_str,
@@ -198,6 +200,7 @@ def get_recent_bars_and_running(
     try:
         with tempfile.NamedTemporaryFile(suffix=".dbn", delete=False) as f:
             path = f.name
+        Path(path).unlink(missing_ok=True)
         client = db.Historical(API_KEY)
         client.timeseries.get_range(
             dataset=DATASET, start=start_str, end=end_str,
