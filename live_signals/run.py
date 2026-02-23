@@ -117,12 +117,22 @@ def main():
         print("Outside RTH (9:30 AM - 4:00 PM ET). Start during session.", flush=True)
         sys.exit(1)
 
+    now_et = datetime.now(EST)
+    if now_et.weekday() >= 5:
+        print("Today is weekend (market closed). Exiting so we don't burn API retries. Will run again next RTH.", flush=True)
+        return
+
     bars, _ = backfill_today_rth()
+    backfill_retries = 0
     while bars is None or len(bars) == 0:
         if not in_rth():
             print("RTH ended while waiting for backfill. Exiting cleanly.", flush=True)
             return
-        print("No backfill data (maybe API issue or holiday). Sleeping 2 min and retrying.", flush=True)
+        backfill_retries += 1
+        print(
+            f"No backfill data (retry {backfill_retries}). See [backfill] lines above for the actual error or empty-data reason. Sleeping 2 min.",
+            flush=True,
+        )
         time.sleep(120)
         bars, _ = backfill_today_rth()
 

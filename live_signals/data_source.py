@@ -93,6 +93,7 @@ def backfill_today_rth() -> tuple:
     Requires API_KEY set. If you start after 9:30, this loads from session start so strategy has context.
     """
     if not API_KEY or db is None:
+        print("[backfill] Skipped: API_KEY not set or databento not installed.", flush=True)
         return None, None
     now_et = datetime.now(EST)
     start_et = now_et.replace(hour=RTH_START_ET[0], minute=RTH_START_ET[1], second=0, microsecond=0)
@@ -102,6 +103,7 @@ def backfill_today_rth() -> tuple:
     end_utc = now_et.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
     path = None
     try:
+        print(f"[backfill] Requesting: {start_utc} -> {end_utc} UTC | symbol={SYMBOL_RAW} dataset={DATASET} schema={SCHEMA}", flush=True)
         with tempfile.NamedTemporaryFile(suffix=".dbn", delete=False) as f:
             path = f.name
         client = db.Historical(API_KEY)
@@ -117,11 +119,25 @@ def backfill_today_rth() -> tuple:
         store = db.DBNStore.from_file(path)
         bars, trades_df = _build_bars_from_replay(store, BAR_SEC)
         Path(path).unlink(missing_ok=True)
+        if bars is None or len(bars) == 0:
+            print(
+                f"[backfill] API returned NO DATA for this range. Requested: {start_utc} to {end_utc} UTC, "
+                f"symbol={SYMBOL_RAW}, dataset={DATASET}, schema={SCHEMA}. "
+                "Possible: weekend/holiday, wrong symbol (e.g. roll MNQH6), or subscription doesn't include this data.",
+                flush=True,
+            )
+            return None, None
         return bars, trades_df
     except Exception as e:
         if path and Path(path).exists():
             Path(path).unlink(missing_ok=True)
-        print(f"[backfill] Databento error: {e}", flush=True)
+        err_type = type(e).__name__
+        print(f"[backfill] Databento error: {err_type}: {e}", flush=True)
+        print(
+            "[backfill] Check: (1) API key valid and has Historical access, (2) symbol correct (e.g. MNQH6 for front month), "
+            "(3) today is a US trading day (Mon–Fri, not holiday), (4) dataset GLBX.MDP3 and schema mbp-1 match your plan.",
+            flush=True,
+        )
         return None, None
 
 
