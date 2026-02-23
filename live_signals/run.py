@@ -45,9 +45,10 @@ def in_rth() -> bool:
     return start <= now < end
 
 
-def _send_discord(message: str) -> None:
+def _send_discord(message: str) -> bool:
+    """Send a message to the Discord webhook. Returns True if sent, False otherwise."""
     if not DISCORD_WEBHOOK_URL:
-        return
+        return False
     try:
         body = json.dumps({"content": message}).encode("utf-8")
         req = urllib.request.Request(
@@ -57,12 +58,14 @@ def _send_discord(message: str) -> None:
             method="POST",
         )
         urllib.request.urlopen(req, timeout=5)
+        return True
     except Exception as e:
         err = str(e)
         if "403" in err or "Forbidden" in err:
-            print(f"[Discord] send failed: {e} — Check webhook URL (create a new one in Discord if needed).", flush=True)
+            print(f"[Discord] send failed: {e} — Webhook URL rejected. Create a NEW webhook in Discord and paste the new URL into Railway.", flush=True)
         else:
             print(f"[Discord] send failed: {e}", flush=True)
+        return False
 
 
 def _ensure_trade_log(base: Path) -> Path:
@@ -192,8 +195,10 @@ def main():
         print(f"[V1 catch-up error] {e}", flush=True)
     # One-time Discord test so you see a message and network flow
     if DISCORD_WEBHOOK_URL:
-        _send_discord(f"Live signals started. MNQ {SCHEMA}. Bars: {len(bars)}. V1+V2 watching.")
-        print("Discord test message sent.", flush=True)
+        if _send_discord(f"Live signals started. MNQ {SCHEMA}. Bars: {len(bars)}. V1+V2 watching."):
+            print("Discord test message sent.", flush=True)
+        else:
+            print("Discord test failed — check webhook URL in Railway (see [Discord] line above).", flush=True)
     else:
         print("DISCORD_WEBHOOK_URL not set — no notifications until set.", flush=True)
     print("---", flush=True)

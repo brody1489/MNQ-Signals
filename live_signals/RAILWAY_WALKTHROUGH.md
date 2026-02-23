@@ -92,6 +92,7 @@ If you see an error about missing `DATABENTO_API_KEY`, go back to **Variables** 
 ## 7. Discord check
 
 - When RTH is open and a signal fires, the app will POST to your webhook.
+- **If you see `[Discord] send failed: HTTP Error 403: Forbidden`:** The webhook URL is invalid or was deleted. Fix it: In Discord go to your **server** → **channel** → **Integrations** → **Webhooks**. Click **New Webhook** (or **Create Webhook**), give it a name, copy the **webhook URL** (it starts with `https://discord.com/api/webhooks/...`). In Railway **Variables**, set `DISCORD_WEBHOOK_URL` (or `Discord_webhook_url`) to that exact URL, then redeploy.
 - You should see messages in the Discord channel like:
   - `LONG  10:45:00 AM EST  MNQ 25084.75`
   - `TAKE PROFIT  11:02:00 AM EST  MNQ 25100.25  entry 25084.75  →  +15.50 pts`
