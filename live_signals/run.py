@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
-from config import API_KEY, BAR_SEC, RTH_START_ET, RTH_END_ET, EST, DISCORD_WEBHOOK_URL, SCHEMA
+from config import API_KEY, BAR_SEC, RTH_START_ET, RTH_END_ET, EST, DISCORD_WEBHOOK_URL, SCHEMA, DATA_DELAY_MINUTES
 from data_source import backfill_today_rth, get_recent_bars_and_running
 from strategy import process_bar
 
@@ -107,7 +107,7 @@ def main():
         print("Using best_params_v2.json from backtest.", flush=True)
     log_path = _ensure_trade_log(base)
 
-    print("Databento schema:", SCHEMA, "| API_KEY:", "set" if API_KEY else "NOT SET", "| Discord:", "set" if DISCORD_WEBHOOK_URL else "NOT SET", flush=True)
+    print("Databento schema:", SCHEMA, "| API_KEY:", "set" if API_KEY else "NOT SET", "| Discord:", "set" if DISCORD_WEBHOOK_URL else "NOT SET", "| data delay:", DATA_DELAY_MINUTES, "min", flush=True)
 
     while not API_KEY:
         print("DATABENTO_API_KEY is not set. Sleeping 5 min and will retry (Railway stays up).", flush=True)

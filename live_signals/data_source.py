@@ -13,7 +13,7 @@ try:
 except ImportError:
     db = None
 
-from config import API_KEY, BAR_SEC, RTH_START_ET, EST, DATASET, SCHEMA, SYMBOL
+from config import API_KEY, BAR_SEC, RTH_START_ET, EST, DATASET, SCHEMA, SYMBOL, DATA_DELAY_MINUTES
 
 # MNQ front month symbol for CME (e.g. MNQH6 = Mar 2026); update as needed or use continuous
 SYMBOL_RAW = "MNQH6"
@@ -99,11 +99,15 @@ def backfill_today_rth() -> tuple:
     start_et = now_et.replace(hour=RTH_START_ET[0], minute=RTH_START_ET[1], second=0, microsecond=0)
     if now_et < start_et:
         return None, None
-    start_utc = start_et.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
-    end_utc = now_et.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    start_utc_dt = start_et.astimezone(timezone.utc)
+    now_utc_dt = now_et.astimezone(timezone.utc)
+    end_utc_dt = now_utc_dt - timedelta(minutes=DATA_DELAY_MINUTES)
+    end_utc_dt = max(end_utc_dt, start_utc_dt + timedelta(minutes=1))
+    start_utc = start_utc_dt.strftime("%Y-%m-%dT%H:%M:%S")
+    end_utc = end_utc_dt.strftime("%Y-%m-%dT%H:%M:%S")
     path = None
     try:
-        print(f"[backfill] Requesting: {start_utc} -> {end_utc} UTC | symbol={SYMBOL_RAW} dataset={DATASET} schema={SCHEMA}", flush=True)
+        print(f"[backfill] Requesting: {start_utc} -> {end_utc} UTC (end capped by {DATA_DELAY_MINUTES} min delay) | symbol={SYMBOL_RAW} dataset={DATASET} schema={SCHEMA}", flush=True)
         with tempfile.NamedTemporaryFile(suffix=".dbn", delete=False) as f:
             path = f.name
         Path(path).unlink(missing_ok=True)
@@ -133,12 +137,20 @@ def backfill_today_rth() -> tuple:
         if path and Path(path).exists():
             Path(path).unlink(missing_ok=True)
         err_type = type(e).__name__
+        err_str = str(e).lower()
         print(f"[backfill] Databento error: {err_type}: {e}", flush=True)
-        print(
-            "[backfill] Check: (1) API key valid and has Historical access, (2) symbol correct (e.g. MNQH6 for front month), "
-            "(3) today is a US trading day (Mon–Fri, not holiday), (4) dataset GLBX.MDP3 and schema mbp-1 match your plan.",
-            flush=True,
-        )
+        if "422" in err_str or "data_end_after_available_end" in err_str:
+            print(
+                f"[backfill] Data delay: API has data only up to ~(now - {DATA_DELAY_MINUTES} min). "
+                "Set DATABENTO_DATA_DELAY_MINUTES=25 (or higher) in Railway if this persists.",
+                flush=True,
+            )
+        else:
+            print(
+                "[backfill] Check: (1) API key valid and has Historical access, (2) symbol correct (e.g. MNQH6 for front month), "
+                "(3) today is a US trading day (Mon–Fri, not holiday), (4) dataset GLBX.MDP3 and schema mbp-1 match your plan.",
+                flush=True,
+            )
         return None, None
 
 
@@ -151,10 +163,10 @@ def poll_latest_bar(start_ts: pd.Timestamp) -> tuple:
     if not API_KEY or db is None:
         return None, None
     now_et = datetime.now(EST)
-    end_utc = now_et.astimezone(timezone.utc)
-    start_utc = end_utc - timedelta(minutes=2)
-    start_str = start_utc.strftime("%Y-%m-%dT%H:%M:%S")
-    end_str = end_utc.strftime("%Y-%m-%dT%H:%M:%S")
+    end_utc_dt = now_et.astimezone(timezone.utc) - timedelta(minutes=DATA_DELAY_MINUTES)
+    start_utc_dt = end_utc_dt - timedelta(minutes=2)
+    start_str = start_utc_dt.strftime("%Y-%m-%dT%H:%M:%S")
+    end_str = end_utc_dt.strftime("%Y-%m-%dT%H:%M:%S")
     path = None
     try:
         with tempfile.NamedTemporaryFile(suffix=".dbn", delete=False) as f:
@@ -192,10 +204,10 @@ def get_recent_bars_and_running(
     if not API_KEY or db is None:
         return pd.DataFrame(), None, None
     now_et = datetime.now(EST)
-    end_utc = now_et.astimezone(timezone.utc)
-    start_utc = end_utc - timedelta(minutes=2)
-    start_str = start_utc.strftime("%Y-%m-%dT%H:%M:%S")
-    end_str = end_utc.strftime("%Y-%m-%dT%H:%M:%S")
+    end_utc_dt = now_et.astimezone(timezone.utc) - timedelta(minutes=DATA_DELAY_MINUTES)
+    start_utc_dt = end_utc_dt - timedelta(minutes=2)
+    start_str = start_utc_dt.strftime("%Y-%m-%dT%H:%M:%S")
+    end_str = end_utc_dt.strftime("%Y-%m-%dT%H:%M:%S")
     path = None
     try:
         with tempfile.NamedTemporaryFile(suffix=".dbn", delete=False) as f:

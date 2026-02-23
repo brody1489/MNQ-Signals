@@ -40,3 +40,6 @@ EST = ZoneInfo("America/New_York")
 DATASET = "GLBX.MDP3"
 # Default mbp-1 (L1) for Standard plan — no MBP-10, so paid usage stays off. Set DATABENTO_SCHEMA=mbp-10 only if you have MBP-10.
 SCHEMA = os.environ.get("DATABENTO_SCHEMA", "mbp-1").strip() or "mbp-1"
+# Historical data is delayed; never request end time past (now - DATA_DELAY_MINUTES). Prevents 422 data_end_after_available_end.
+_DATA_DELAY = os.environ.get("DATABENTO_DATA_DELAY_MINUTES", "").strip()
+DATA_DELAY_MINUTES = int(_DATA_DELAY) if _DATA_DELAY.isdigit() else 20
