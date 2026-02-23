@@ -8,4 +8,5 @@ nixPkgs = ["python311"]
 cmds = ["pip install -r requirements.txt"]
 
 [start]
-cmd = "python run_rth_loop.py"
+# Unbuffered stdout so Railway deploy logs show every print
+cmd = "python -u run_rth_loop.py"

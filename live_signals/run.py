@@ -217,12 +217,12 @@ def main():
                         ts_str = _est_12hr(bar_ts)
                         if signal == "LONG":
                             msg = f"V1 LONG  {ts_str}  MNQ {price}"
-                            print(msg)
+                            print(msg, flush=True)
                             _send_discord(msg)
                             _log_trade(log_path, bar_ts, "LONG", price, "V1")
                         elif signal == "SHORT":
                             msg = f"V1 SHORT  {ts_str}  MNQ {price}"
-                            print(msg)
+                            print(msg, flush=True)
                             _send_discord(msg)
                             _log_trade(log_path, bar_ts, "SHORT", price, "V1")
                         elif signal == "TAKE_PROFIT":
@@ -230,7 +230,7 @@ def main():
                             pnl_pts = (price - entry_price) / 1.0 if entry_price is not None else None
                             pnl_str = f"  entry {entry_price:.2f}  →  {pnl_pts:+.2f} pts" if pnl_pts is not None else ""
                             msg = f"V1 TAKE PROFIT  {ts_str}  MNQ {price}{pnl_str}"
-                            print(msg)
+                            print(msg, flush=True)
                             _send_discord(msg)
                             _log_trade(log_path, bar_ts, "EXIT", price, "V1", entry_price, pnl_pts)
                     except Exception as e:
@@ -246,12 +246,12 @@ def main():
                 ts_str = _est_12hr(running_bar_ts)
                 if signal == "LONG":
                     msg = f"V2 LONG  {ts_str}  MNQ {price}"
-                    print(msg)
+                    print(msg, flush=True)
                     _send_discord(msg)
                     _log_trade(log_path, running_bar_ts, "LONG", price, "V2")
                 elif signal == "SHORT":
                     msg = f"V2 SHORT  {ts_str}  MNQ {price}"
-                    print(msg)
+                    print(msg, flush=True)
                     _send_discord(msg)
                     _log_trade(log_path, running_bar_ts, "SHORT", price, "V2")
                 elif signal == "TAKE_PROFIT":
@@ -259,7 +259,7 @@ def main():
                     pnl_pts = (price - entry_price) / 1.0 if entry_price is not None else None
                     pnl_str = f"  entry {entry_price:.2f}  →  {pnl_pts:+.2f} pts" if pnl_pts is not None else ""
                     msg = f"V2 TAKE PROFIT  {ts_str}  MNQ {price}{pnl_str}"
-                    print(msg)
+                    print(msg, flush=True)
                     _send_discord(msg)
                     _log_trade(log_path, running_bar_ts, "EXIT", price, "V2", entry_price, pnl_pts)
             except Exception as e:

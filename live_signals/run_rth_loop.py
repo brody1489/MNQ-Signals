@@ -32,6 +32,7 @@ def _sleep_until(target: datetime):
 
 
 if __name__ == "__main__":
+    print("Live signals process started.", flush=True)
     print("RTH loop: will run live signals only during 9:30 AM - 4:00 PM ET. Ctrl+C to stop.", flush=True)
     while True:
         if not run.in_rth():

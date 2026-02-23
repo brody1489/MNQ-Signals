@@ -50,11 +50,13 @@ If the repo root is **the whole project** (e.g. `Website_design`), we’ll set R
 5. Find **Build Command**. You can leave it empty (Railway will auto-detect Python and run `pip install -r requirements.txt` if `requirements.txt` is in `live_signals`).
 6. Find **Start Command** (or **Run Command**). Set it to:
    ```bash
-   python run_rth_loop.py
+   python -u run_rth_loop.py
    ```
+   (`-u` = unbuffered stdout so deploy logs show every line. If you use the Dockerfile or nixpacks.toml, this is already set.)
+
    So the process runs the RTH loop and only does work during market hours.
 
-If your GitHub repo **is** only the contents of `live_signals` (repo root = `live_signals`), leave **Root Directory** empty and set **Start Command** to `python run_rth_loop.py`.
+If your GitHub repo **is** only the contents of `live_signals` (repo root = `live_signals`), leave **Root Directory** empty and set **Start Command** to `python -u run_rth_loop.py`.
 
 ---
 
