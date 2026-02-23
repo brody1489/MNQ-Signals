@@ -54,7 +54,10 @@ def _send_discord(message: str) -> bool:
         req = urllib.request.Request(
             DISCORD_WEBHOOK_URL,
             data=body,
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": "MNQ-Signals/1.0",
+            },
             method="POST",
         )
         urllib.request.urlopen(req, timeout=5)
@@ -114,7 +117,8 @@ def main():
         print("Using best_params_v2.json from backtest.", flush=True)
     log_path = _ensure_trade_log(base)
 
-    print("Databento schema:", SCHEMA, "| API_KEY:", "set" if API_KEY else "NOT SET", "| Discord:", "set" if DISCORD_WEBHOOK_URL else "NOT SET", "| data delay:", DATA_DELAY_MINUTES, "min", flush=True)
+    discord_len = len(DISCORD_WEBHOOK_URL) if DISCORD_WEBHOOK_URL else 0
+    print("Databento schema:", SCHEMA, "| API_KEY:", "set" if API_KEY else "NOT SET", "| Discord:", "set" if DISCORD_WEBHOOK_URL else "NOT SET", f"(URL len={discord_len})", "| data delay:", DATA_DELAY_MINUTES, "min", flush=True)
 
     while not API_KEY:
         print("DATABENTO_API_KEY is not set. Sleeping 5 min and will retry (Railway stays up).", flush=True)
