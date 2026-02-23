@@ -12,9 +12,15 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
-from config import API_KEY, BAR_SEC, RTH_START_ET, RTH_END_ET, EST, DISCORD_WEBHOOK_URL, SCHEMA, DATA_DELAY_MINUTES
+from config import API_KEY, BAR_SEC, RTH_START_ET, RTH_END_ET, EST, DISCORD_WEBHOOK_URL, SCHEMA, DATA_DELAY_MINUTES, USE_LIVE_DATA
 from data_source import backfill_today_rth, get_recent_bars_and_running
 from strategy import process_bar
+
+try:
+    from live_stream import run_live_session, LiveBarBuilder
+    LIVE_STREAM_AVAILABLE = True
+except Exception:
+    LIVE_STREAM_AVAILABLE = False
 
 # How often to poll for V2 (running bar). V1 still only acts at 1-min bar close.
 V2_POLL_SEC = 10
@@ -199,7 +205,8 @@ def main():
         print(f"[V1 catch-up error] {e}", flush=True)
     # One-time Discord test so you see a message and network flow
     if DISCORD_WEBHOOK_URL:
-        if _send_discord(f"Live signals started. MNQ {SCHEMA}. Bars: {len(bars)}. V1+V2 watching."):
+        mode = "LIVE stream" if (USE_LIVE_DATA and LIVE_STREAM_AVAILABLE) else "Historical poll"
+        if _send_discord(f"Live signals started. MNQ {SCHEMA}. Bars: {len(bars)}. V1+V2 watching ({mode})."):
             print("Discord test message sent.", flush=True)
         else:
             print("Discord test failed — check webhook URL in Railway (see [Discord] line above).", flush=True)
@@ -207,20 +214,40 @@ def main():
         print("DISCORD_WEBHOOK_URL not set — no notifications until set.", flush=True)
     print("---", flush=True)
 
+    builder = None
+    use_live = USE_LIVE_DATA and LIVE_STREAM_AVAILABLE
+    if use_live:
+        print("Using Databento Live stream for real-time bars (V1 = 1-min close, V2 = running bar).", flush=True)
+        session_start_ns = int(pd.Timestamp(session_start).value)
+        builder, _ = run_live_session(session_start_ns, replay_minutes_ago=1)
+        if builder is None:
+            print("[live] Fallback to Historical polling (Live failed to start).", flush=True)
+            use_live = False
+        else:
+            time.sleep(2)
+
     poll_count = 0
     while True:
         now_et = datetime.now(EST)
         end_et = now_et.replace(hour=RTH_END_ET[0], minute=RTH_END_ET[1], second=0, microsecond=0)
         if now_et >= end_et:
             print("RTH over. Stopping.", flush=True)
+            if builder is not None:
+                builder.stop()
             break
 
-        try:
-            new_completed, running_bar, running_bar_ts = get_recent_bars_and_running(session_start, last_bar_ts)
-        except Exception as e:
-            print(f"[poll error] {e}", flush=True)
-            time.sleep(V2_POLL_SEC)
-            continue
+        if use_live and builder is not None:
+            new_completed = builder.get_completed_bars()
+            running_bar, running_bar_ts = builder.get_running_bar()
+            if running_bar is not None:
+                running_bar = running_bar.to_dict()
+        else:
+            try:
+                new_completed, running_bar, running_bar_ts = get_recent_bars_and_running(session_start, last_bar_ts)
+            except Exception as e:
+                print(f"[poll error] {e}", flush=True)
+                time.sleep(V2_POLL_SEC)
+                continue
 
         # Append new completed bar(s) to shared history
         if new_completed is not None and len(new_completed) > 0:

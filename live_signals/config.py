@@ -43,3 +43,9 @@ SCHEMA = os.environ.get("DATABENTO_SCHEMA", "mbp-1").strip() or "mbp-1"
 # Historical data is delayed; never request end time past (now - DATA_DELAY_MINUTES). Prevents 422 data_end_after_available_end.
 _DATA_DELAY = os.environ.get("DATABENTO_DATA_DELAY_MINUTES", "").strip()
 DATA_DELAY_MINUTES = int(_DATA_DELAY) if _DATA_DELAY.isdigit() else 20
+
+# Use Databento Live API for real-time bars (Standard plan has live). Set USE_LIVE_DATA=0 to fall back to Historical polling only.
+_USE_LIVE = os.environ.get("USE_LIVE_DATA", "1").strip().lower()
+USE_LIVE_DATA = _USE_LIVE in ("1", "true", "yes")
+# Use Databento Live API for real-time bars (Standard plan has live). If False, use Historical polling (~20 min delayed).
+USE_LIVE_DATA = os.environ.get("USE_LIVE_DATA", "1").strip().lower() in ("1", "true", "yes")
