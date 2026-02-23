@@ -32,16 +32,16 @@ def _sleep_until(target: datetime):
 
 
 if __name__ == "__main__":
-    print("RTH loop: will run live signals only during 9:30 AM - 4:00 PM ET. Ctrl+C to stop.")
+    print("RTH loop: will run live signals only during 9:30 AM - 4:00 PM ET. Ctrl+C to stop.", flush=True)
     while True:
         if not run.in_rth():
             next_start = _next_rth_start()
-            print(f"Outside RTH. Sleeping until {next_start.strftime('%Y-%m-%d %I:%M %p')} ET.")
+            print(f"Outside RTH. Sleeping until {next_start.strftime('%Y-%m-%d %I:%M %p')} ET.", flush=True)
             _sleep_until(next_start)
             continue
-        print("RTH started. Running live signal loop.")
+        print("RTH started. Running live signal loop.", flush=True)
         try:
             run.main()
         except Exception as e:
             print(f"Live loop error (will retry next session): {e}", flush=True)
-        print("RTH ended. Sleeping until next session.")
+        print("RTH ended. Sleeping until next session.", flush=True)

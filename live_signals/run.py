@@ -57,8 +57,8 @@ def _send_discord(message: str) -> None:
             method="POST",
         )
         urllib.request.urlopen(req, timeout=5)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[Discord] send failed: {e}", flush=True)
 
 
 def _ensure_trade_log(base: Path) -> Path:
@@ -95,30 +95,34 @@ def _log_trade(
 
 def main():
     base = Path(__file__).resolve().parent
+    print("[live] main() started", flush=True)
     params_path = base / "params.json"
     if not params_path.exists():
-        print("params.json not found. Exiting.")
+        print("params.json not found. Exiting.", flush=True)
         sys.exit(1)
     params = json.loads(params_path.read_text())
     best_path = base.parent / "orderflow_strategy" / "data" / "best_params_v2.json"
     if best_path.exists():
         params = json.loads(best_path.read_text())
-        print("Using best_params_v2.json from backtest.")
+        print("Using best_params_v2.json from backtest.", flush=True)
     log_path = _ensure_trade_log(base)
 
-    print("Databento schema:", SCHEMA, "(L1 = Standard plan; no MBP-10 requested)")
+    print("Databento schema:", SCHEMA, "| API_KEY:", "set" if API_KEY else "NOT SET", "| Discord:", "set" if DISCORD_WEBHOOK_URL else "NOT SET", flush=True)
 
     while not API_KEY:
-        print("DATABENTO_API_KEY is not set. Sleeping 5 min and will retry (Railway stays up).")
+        print("DATABENTO_API_KEY is not set. Sleeping 5 min and will retry (Railway stays up).", flush=True)
         time.sleep(300)
 
     if not in_rth():
-        print("Outside RTH (9:30 AM - 4:00 PM ET). Start during session.")
+        print("Outside RTH (9:30 AM - 4:00 PM ET). Start during session.", flush=True)
         sys.exit(1)
 
     bars, _ = backfill_today_rth()
     while bars is None or len(bars) == 0:
-        print("No backfill data (maybe before 9:30 or API issue). Sleeping 2 min and retrying.")
+        if not in_rth():
+            print("RTH ended while waiting for backfill. Exiting cleanly.", flush=True)
+            return
+        print("No backfill data (maybe API issue or holiday). Sleeping 2 min and retrying.", flush=True)
         time.sleep(120)
         bars, _ = backfill_today_rth()
 
@@ -127,11 +131,25 @@ def main():
     state_v1 = {}
     state_v2 = {}
 
-    print("Backfill loaded:", len(bars), "bars from", session_start, "to", last_bar_ts)
-    print("V1 = 1-min bar close. V2 = running bar (poll every", V2_POLL_SEC, "s). Same params.")
-    print("Discord/CSV: V1 LONG ..., V1 TAKE PROFIT ..., V2 LONG ..., etc.")
-    print("---")
+    print("Backfill loaded:", len(bars), "bars from", session_start, "to", last_bar_ts, flush=True)
+    print("V1 = 1-min bar close. V2 = running bar (poll every", V2_POLL_SEC, "s). Same params.", flush=True)
+    print("Discord/CSV: V1 LONG ..., V1 TAKE PROFIT ..., V2 LONG ..., etc.", flush=True)
+    # Ensure bars have all columns strategy needs (lookback, levels, COB)
+    required = ["mid", "bid_depth", "ask_depth", "buy_vol", "sell_vol", "cob_ask"]
+    missing = [c for c in required if c not in bars.columns]
+    if missing:
+        print(f"[WARN] Bars missing columns: {missing}", flush=True)
+    else:
+        print("Bar columns OK: mid, bid_depth, ask_depth, buy_vol, sell_vol, cob_ask", flush=True)
+    # One-time Discord test so you see a message and network flow
+    if DISCORD_WEBHOOK_URL:
+        _send_discord(f"Live signals started. MNQ {SCHEMA}. Bars: {len(bars)}. V1+V2 watching.")
+        print("Discord test message sent.", flush=True)
+    else:
+        print("DISCORD_WEBHOOK_URL not set — no notifications until set.", flush=True)
+    print("---", flush=True)
 
+    poll_count = 0
     while True:
         now_et = datetime.now(EST)
         end_et = now_et.replace(hour=RTH_END_ET[0], minute=RTH_END_ET[1], second=0, microsecond=0)
@@ -212,6 +230,9 @@ def main():
             except Exception as e:
                 print(f"[V2 process_bar error] {e}", flush=True)
 
+        poll_count += 1
+        if poll_count % 6 == 0:
+            print(f"[heartbeat] bars={len(bars)} last_ts={last_bar_ts} poll={poll_count}", flush=True)
         time.sleep(V2_POLL_SEC)
 
 
