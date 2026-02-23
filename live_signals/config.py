@@ -15,11 +15,19 @@ except ImportError:
 # --- API: set when you have a subscription (e.g. Databento) ---
 # In CMD before running: set DATABENTO_API_KEY=db-your-key-here
 # Or add to .env in this folder (see README)
-API_KEY = os.environ.get("DATABENTO_API_KEY", "").strip()
+# Railway: use exact name DATABENTO_API_KEY (case-sensitive). We accept common typos too.
+API_KEY = (
+    os.environ.get("DATABENTO_API_KEY", "").strip()
+    or os.environ.get("Databento_API_KEY", "").strip()
+)
 
 # --- Discord: optional. If set, each LONG / TAKE PROFIT is posted to your channel. ---
 # Create in Discord: Server → Channel → Integrations → Webhooks → New Webhook, copy URL
-DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "").strip()
+# Railway: use exact name DISCORD_WEBHOOK_URL (case-sensitive). We accept common typos too.
+DISCORD_WEBHOOK_URL = (
+    os.environ.get("DISCORD_WEBHOOK_URL", "").strip()
+    or os.environ.get("Discord_webhook_url", "").strip()
+)
 
 # --- Symbol and session (RTH only: 9:30 AM - 4:00 PM ET) ---
 SYMBOL = "MNQ"
