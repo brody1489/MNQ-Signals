@@ -13,15 +13,7 @@ try:
 except ImportError:
     db = None
 
-from config import (
-    API_KEY,
-    BAR_SEC,
-    RTH_START_ET,
-    EST,
-    DATASET,
-    SCHEMA,
-    DATA_DELAY_MINUTES,
-)
+from config import API_KEY, BAR_SEC, RTH_START_ET, EST, DATASET, SCHEMA
 
 SYMBOL_RAW = "MNQH6"
 TICK_PX = 0.25
@@ -70,48 +62,57 @@ class LiveBarBuilder:
     def _record_callback(self, r):
         if self._stopped:
             return
-        ts_ns = r.ts_recv
+        try:
+            ts_ns = getattr(r, "ts_recv", None)
+            if ts_ns is None:
+                return
+        except Exception:
+            return
         bar_idx = (ts_ns - self.session_start_ns) // BAR_NS
         if bar_idx < 0:
             return
-        with self._lock:
-            if bar_idx not in self._bars_dict:
-                self._bars_dict[bar_idx] = {
-                    "mid_last": 0.0,
-                    "bid_sum": 0.0,
-                    "ask_sum": 0.0,
-                    "n": 0,
-                    "buy_vol": 0,
-                    "sell_vol": 0,
-                    "ask_at_price": defaultdict(float),
-                }
-            d = self._bars_dict[bar_idx]
+        try:
+            with self._lock:
+                if bar_idx not in self._bars_dict:
+                    self._bars_dict[bar_idx] = {
+                        "mid_last": 0.0,
+                        "bid_sum": 0.0,
+                        "ask_sum": 0.0,
+                        "n": 0,
+                        "buy_vol": 0,
+                        "sell_vol": 0,
+                        "ask_at_price": defaultdict(float),
+                    }
+                d = self._bars_dict[bar_idx]
 
-            if r.action == "T":
-                side = str(getattr(r, "side", "B"))
-                if side == "B":
-                    d["buy_vol"] = d.get("buy_vol", 0) + int(r.size)
-                else:
-                    d["sell_vol"] = d.get("sell_vol", 0) + int(r.size)
-            elif hasattr(r, "levels") and r.levels:
-                mid = (r.levels[0].pretty_bid_px + r.levels[0].pretty_ask_px) / 2
-                bid_d = sum(lev.bid_sz for lev in r.levels)
-                ask_d = sum(lev.ask_sz for lev in r.levels)
-                d["mid_last"] = mid
-                d["bid_sum"] += bid_d
-                d["ask_sum"] += ask_d
-                d["n"] += 1
-                for lev in r.levels:
-                    px = round(lev.pretty_ask_px / TICK_PX) * TICK_PX
-                    d["ask_at_price"][px] += lev.ask_sz
+                action = getattr(r, "action", None)
+                if action == "T":
+                    side = str(getattr(r, "side", "B"))
+                    if side == "B":
+                        d["buy_vol"] = d.get("buy_vol", 0) + int(getattr(r, "size", 0))
+                    else:
+                        d["sell_vol"] = d.get("sell_vol", 0) + int(getattr(r, "size", 0))
+                elif hasattr(r, "levels") and r.levels:
+                    mid = (r.levels[0].pretty_bid_px + r.levels[0].pretty_ask_px) / 2
+                    bid_d = sum(lev.bid_sz for lev in r.levels)
+                    ask_d = sum(lev.ask_sz for lev in r.levels)
+                    d["mid_last"] = mid
+                    d["bid_sum"] += bid_d
+                    d["ask_sum"] += ask_d
+                    d["n"] += 1
+                    for lev in r.levels:
+                        px = round(lev.pretty_ask_px / TICK_PX) * TICK_PX
+                        d["ask_at_price"][px] += lev.ask_sz
 
-            prev = self._current_bar_idx
-            self._current_bar_idx = bar_idx
-            if prev is not None and bar_idx > prev:
-                for completed_idx in range(prev, bar_idx):
-                    if completed_idx in self._bars_dict:
-                        row = _dict_to_row(self._bars_dict[completed_idx])
-                        self._completed_queue.put((self._bar_ts(completed_idx), row))
+                prev = self._current_bar_idx
+                self._current_bar_idx = bar_idx
+                if prev is not None and bar_idx > prev:
+                    for completed_idx in range(prev, bar_idx):
+                        if completed_idx in self._bars_dict:
+                            row = _dict_to_row(self._bars_dict[completed_idx])
+                            self._completed_queue.put((self._bar_ts(completed_idx), row))
+        except Exception:
+            pass
 
     def get_completed_bars(self) -> pd.DataFrame:
         """Drain completed bars (full 1-min candles). Call from main thread."""
@@ -186,10 +187,10 @@ class LiveBarBuilder:
 
 def run_live_session(
     session_start_ns: int,
-    replay_minutes_ago: int = 1,
+    replay_minutes_ago: int = 0,
 ):
     """
-    Create a LiveBarBuilder, start Live with intraday replay from (now - replay_minutes_ago).
+    Create a LiveBarBuilder, start Live from (now - replay_minutes_ago). replay_minutes_ago=0 for true real-time.
     Returns (builder, replay_start_utc) or (None, None) on failure.
     """
     if not API_KEY or db is None:

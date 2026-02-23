@@ -226,9 +226,9 @@ def _passive_accumulation_level(
     direction: str,
 ) -> tuple:
     """
-    Your edge: passive accumulation at a level (at least min_count bars with COB >= threshold).
-    Returns (True, acc_level) if we have >= min_count such bars; else (False, None).
-    acc_level = min(mid) over those bars = the support level for longs.
+    Long: passive accumulation (bid_depth >= cob), level = min(mid) = support.
+    Short: passive distribution (ask_depth >= cob), level = max(mid) = resistance.
+    Returns (True, level) if we have >= min_count such bars; else (False, None).
     """
     end = start_idx + 1
     start = max(0, start_idx - lookback_bars)
@@ -237,12 +237,14 @@ def _passive_accumulation_level(
     above = window[col] >= cob_threshold
     if above.sum() < min_count:
         return False, None
-    # Level = min price (mid) where we had passive acc
     mid_vals = window["mid"].values
     above_vals = above.values
     acc_mids = mid_vals[above_vals]
-    acc_level = float(np.min(acc_mids))
-    return True, acc_level
+    if direction == "long":
+        level = float(np.min(acc_mids))
+    else:
+        level = float(np.max(acc_mids))
+    return True, level
 
 
 def _aggressive_accumulation(
@@ -411,70 +413,111 @@ def run_backtest(
     trade_pnls = []
     trade_details = []
     bounce_bars = params.get("bounce_bars", 5)  # bars after retest to confirm bounce
+    enable_shorts = params.get("enable_shorts", True)
     i = 0
 
     while i < len(bars) - passive_lookback_bars - bos_lookback * 4:
-        # 1) Passive accumulation at a level: >= min_pa bars with COB >= cob in lookback
+        def _time_ok(entry_bar_idx):
+            no_first_minutes = params.get("no_first_minutes", 0)
+            if no_first_minutes and entry_bar_idx < no_first_minutes:
+                return False
+            lunch_window = params.get("lunch_window", "none")
+            if lunch_window != "none":
+                start_bar, end_bar = {"11-1": (90, 210), "11:30-1": (120, 210), "12-1": (150, 210)}.get(lunch_window, (0, 0))
+                if start_bar <= entry_bar_idx < end_bar:
+                    return False
+            return True
+
+        # --- Find next LONG entry ---
+        long_candidate = None
         has_pa, acc_level = _passive_accumulation_level(
             bars, i, passive_lookback_bars, cob, min_pa, "long"
         )
-        if not has_pa or acc_level is None:
-            i += 1
-            continue
-
-        # 2) Retest + bounce: price comes back to level then bounces
-        found_entry_bar = None
-        for t in range(i, min(i + bos_search_bars, len(bars) - bos_lookback * 2 - bounce_bars - 1)):
-            if bars["mid"].iloc[t] > acc_level + kl_pts * POINT:
-                continue
-            # Retest: price at or near level
-            if t + bounce_bars + 1 >= len(bars):
-                break
-            next_mids = bars["mid"].iloc[t + 1 : t + bounce_bars + 1].values
-            if np.max(next_mids) <= acc_level + kl_pts * POINT:
-                continue
-            # 3) BOS up after the bounce (in price from t onward)
-            sub_price = price[t : min(t + bos_search_bars, len(bars))]
-            if len(sub_price) < bos_lookback * 2 + 1:
-                continue
-            bos_list = _detect_bos(sub_price, bos_lookback, bos_ticks, "up")
-            if not bos_list:
-                continue
-            entry_bar_idx = t + bos_list[0]
-            if entry_bar_idx >= len(bars):
-                continue
-            entry_price = price[entry_bar_idx]
-            entry_ts = bars.index[entry_bar_idx]
-            # Entry must be above or at level (we're long after bounce)
-            if entry_price < acc_level - kl_pts * POINT:
-                continue
-            # 4) Aggressive accumulation at/after entry bar
-            if "buy_vol" in bars.columns and "sell_vol" in bars.columns:
-                agg_ok = _aggressive_accumulation_bars(bars, entry_bar_idx, bar_sec, agg_win, agg_vol, "long")
-            elif trades_df is not None:
-                agg_ok = _aggressive_accumulation_trades(trades_df, entry_ts, agg_win, agg_vol, "long")
-            else:
-                agg_ok = _aggressive_accumulation(df, entry_ts, agg_win, agg_vol, "long")
-            if not agg_ok:
-                continue
-            # Time filters: no first N minutes, no lunch window (bar 0 = session start 9:30 ET)
-            no_first_minutes = params.get("no_first_minutes", 0)
-            if no_first_minutes and entry_bar_idx < no_first_minutes:
-                continue
-            lunch_window = params.get("lunch_window", "none")
-            if lunch_window != "none":
-                # 1-min bars: 9:30 = bar 0. 11:00 = 90, 11:30 = 120, 12:00 = 150, 13:00 = 210
-                start_bar, end_bar = {"11-1": (90, 210), "11:30-1": (120, 210), "12-1": (150, 210)}.get(lunch_window, (0, 0))
-                if start_bar <= entry_bar_idx < end_bar:
+        if has_pa and acc_level is not None:
+            for t in range(i, min(i + bos_search_bars, len(bars) - bos_lookback * 2 - bounce_bars - 1)):
+                if bars["mid"].iloc[t] > acc_level + kl_pts * POINT:
                     continue
-            found_entry_bar = entry_bar_idx
-            break
+                if t + bounce_bars + 1 >= len(bars):
+                    break
+                next_mids = bars["mid"].iloc[t + 1 : t + bounce_bars + 1].values
+                if np.max(next_mids) <= acc_level + kl_pts * POINT:
+                    continue
+                sub_price = price[t : min(t + bos_search_bars, len(bars))]
+                if len(sub_price) < bos_lookback * 2 + 1:
+                    continue
+                bos_list = _detect_bos(sub_price, bos_lookback, bos_ticks, "up")
+                if not bos_list:
+                    continue
+                entry_bar_idx = t + bos_list[0]
+                if entry_bar_idx >= len(bars):
+                    continue
+                entry_price = price[entry_bar_idx]
+                entry_ts = bars.index[entry_bar_idx]
+                if entry_price < acc_level - kl_pts * POINT:
+                    continue
+                if "buy_vol" in bars.columns and "sell_vol" in bars.columns:
+                    agg_ok = _aggressive_accumulation_bars(bars, entry_bar_idx, bar_sec, agg_win, agg_vol, "long")
+                elif trades_df is not None:
+                    agg_ok = _aggressive_accumulation_trades(trades_df, entry_ts, agg_win, agg_vol, "long")
+                else:
+                    agg_ok = _aggressive_accumulation(df, entry_ts, agg_win, agg_vol, "long")
+                if not agg_ok or not _time_ok(entry_bar_idx):
+                    continue
+                long_candidate = (entry_bar_idx, entry_price, entry_ts, acc_level, "long")
+                break
 
-        if found_entry_bar is None:
+        # --- Find next SHORT entry (if enabled) ---
+        short_candidate = None
+        if enable_shorts:
+            has_dist, res_level = _passive_accumulation_level(
+                bars, i, passive_lookback_bars, cob, min_pa, "short"
+            )
+            if has_dist and res_level is not None:
+                for t in range(i, min(i + bos_search_bars, len(bars) - bos_lookback * 2 - bounce_bars - 1)):
+                    if bars["mid"].iloc[t] < res_level - kl_pts * POINT:
+                        continue
+                    if t + bounce_bars + 1 >= len(bars):
+                        break
+                    next_mids = bars["mid"].iloc[t + 1 : t + bounce_bars + 1].values
+                    if np.min(next_mids) >= res_level - kl_pts * POINT:
+                        continue
+                    sub_price = price[t : min(t + bos_search_bars, len(bars))]
+                    if len(sub_price) < bos_lookback * 2 + 1:
+                        continue
+                    bos_list = _detect_bos(sub_price, bos_lookback, bos_ticks, "down")
+                    if not bos_list:
+                        continue
+                    entry_bar_idx = t + bos_list[0]
+                    if entry_bar_idx >= len(bars):
+                        continue
+                    entry_price = price[entry_bar_idx]
+                    entry_ts = bars.index[entry_bar_idx]
+                    if entry_price > res_level + kl_pts * POINT:
+                        continue
+                    if "buy_vol" in bars.columns and "sell_vol" in bars.columns:
+                        agg_ok = _aggressive_accumulation_bars(bars, entry_bar_idx, bar_sec, agg_win, agg_vol, "short")
+                    elif trades_df is not None:
+                        agg_ok = _aggressive_accumulation_trades(trades_df, entry_ts, agg_win, agg_vol, "short")
+                    else:
+                        agg_ok = _aggressive_accumulation(df, entry_ts, agg_win, agg_vol, "short")
+                    if not agg_ok or not _time_ok(entry_bar_idx):
+                        continue
+                    short_candidate = (entry_bar_idx, entry_price, entry_ts, res_level, "short")
+                    break
+
+        # Take the earlier of long vs short
+        chosen = None
+        if long_candidate and short_candidate:
+            chosen = long_candidate if long_candidate[0] <= short_candidate[0] else short_candidate
+        elif long_candidate:
+            chosen = long_candidate
+        elif short_candidate:
+            chosen = short_candidate
+        if chosen is None:
             i += 1
             continue
 
-        entry_bar_idx = found_entry_bar
+        entry_bar_idx, entry_price, entry_ts, level_at_entry, side = chosen
         # Optional: test "theoretical better entry" (e.g. 1 bar earlier/later) without tick data
         entry_bar_offset = params.get("entry_bar_offset", 0)
         entry_bar_idx = max(0, min(entry_bar_idx + entry_bar_offset, len(bars) - 1))
@@ -482,123 +525,145 @@ def run_backtest(
         entry_ts = bars.index[entry_bar_idx]
         running_high = bars["mid"].iloc[: entry_bar_idx + 1].max()
         running_low = bars["mid"].iloc[: entry_bar_idx + 1].min()
-        key_levels_at_entry = [running_low, running_high, acc_level]
+        key_levels_at_entry = [running_low, running_high, level_at_entry]
 
-        # SL: below support (running_low at entry), capped. No look-ahead.
-        sl_max_pts = params.get("sl_max_pts", 25)
-        trail_sl_pts = params.get("trail_sl_pts", 15)
-        if sl_style == "level":
-            support = running_low
-            sl_price = support - sl_buffer_pts * POINT
-            dist_pts = entry_price - sl_price
-            if sl_price >= entry_price or dist_pts < 3 * POINT:
-                sl_price = entry_price - sl_points_fallback * POINT
-            elif dist_pts > sl_max_pts:
-                sl_price = entry_price - sl_points_fallback * POINT
-        else:
-            sl_price = entry_price - sl_ticks * TICK
         exit_price = None
         exit_reason = None
         exit_bar_k = None
-        trail_activation_pts = params.get("trail_activation_pts", 0)  # 0 = legacy: move SL to entry-2 at trail_sl_pts. >0 = only trail from high once we're this many pts in profit
-        for k in range(entry_bar_idx + 1, len(bars)):
-            p = bars["mid"].iloc[k]
-            high_so_far = bars["mid"].iloc[entry_bar_idx : k + 1].max()
-            if trail_sl_pts:
-                if trail_activation_pts > 0:
-                    # Adaptive: only start trailing from high once we've run at least trail_activation_pts (e.g. 30). Then protect from high.
-                    if high_so_far >= entry_price + trail_activation_pts * POINT:
-                        trail_from = high_so_far - trail_sl_pts * POINT
-                        sl_price = max(sl_price, trail_from)
-                else:
-                    # Legacy: once we're trail_sl_pts up, move SL to entry-2
-                    if p >= entry_price + trail_sl_pts * POINT:
-                        sl_price = max(sl_price, entry_price - 2 * POINT)
-            if p <= sl_price:
-                exit_price = sl_price
-                exit_reason = "sl"
-                exit_bar_k = k
-                break
-            if exit_on_reversal_bos and k > entry_bar_idx + bos_lookback:
-                sub = price[entry_bar_idx : k + 1]
-                if len(sub) >= bos_lookback * 2 + 1:
-                    bos_dn = _detect_bos(sub, bos_lookback, bos_ticks, "down")
-                    if bos_dn:
+
+        if side == "long":
+            # SL: below support (running_low at entry), capped.
+            sl_max_pts = params.get("sl_max_pts", 25)
+            trail_sl_pts = params.get("trail_sl_pts", 15)
+            if sl_style == "level":
+                support = running_low
+                sl_price = support - sl_buffer_pts * POINT
+                dist_pts = entry_price - sl_price
+                if sl_price >= entry_price or dist_pts < 3 * POINT:
+                    sl_price = entry_price - sl_points_fallback * POINT
+                elif dist_pts > sl_max_pts:
+                    sl_price = entry_price - sl_points_fallback * POINT
+            else:
+                sl_price = entry_price - sl_ticks * TICK
+            trail_activation_pts = params.get("trail_activation_pts", 0)
+            for k in range(entry_bar_idx + 1, len(bars)):
+                p = bars["mid"].iloc[k]
+                high_so_far = bars["mid"].iloc[entry_bar_idx : k + 1].max()
+                if trail_sl_pts:
+                    if trail_activation_pts > 0:
+                        if high_so_far >= entry_price + trail_activation_pts * POINT:
+                            sl_price = max(sl_price, high_so_far - trail_sl_pts * POINT)
+                    else:
+                        if p >= entry_price + trail_sl_pts * POINT:
+                            sl_price = max(sl_price, entry_price - 2 * POINT)
+                if p <= sl_price:
+                    exit_price = sl_price
+                    exit_reason = "sl"
+                    exit_bar_k = k
+                    break
+                if exit_on_reversal_bos and k > entry_bar_idx + bos_lookback:
+                    sub = price[entry_bar_idx : k + 1]
+                    if len(sub) >= bos_lookback * 2 + 1 and _detect_bos(sub, bos_lookback, bos_ticks, "down"):
                         exit_price = p
                         exit_reason = "reversal_bos"
                         exit_bar_k = k
                         break
-            # Exhaustion exit: in profit + buyers failing (price down, sellers dominating). No fixed TP — exit when momentum fails.
-            exit_on_exhaustion = params.get("exit_on_exhaustion", False)
-            if exit_on_exhaustion and exit_price is None and k >= entry_bar_idx + 2 and "buy_vol" in bars.columns and "sell_vol" in bars.columns:
-                unrealized_pts = (p - entry_price) / POINT
-                if unrealized_pts > 5:  # only consider when we're meaningfully in profit
-                    prev_mid = bars["mid"].iloc[k - 1]
-                    prev2_mid = bars["mid"].iloc[k - 2]
-                    sell_k = bars["sell_vol"].iloc[k]
-                    buy_k = bars["buy_vol"].iloc[k]
-                    sell_prev = bars["sell_vol"].iloc[k - 1]
-                    buy_prev = bars["buy_vol"].iloc[k - 1]
-                    # Two bars down (stalling) and sellers dominating
-                    two_bars_down = p < prev_mid and prev_mid < prev2_mid
-                    sellers_dominating = (sell_k > buy_k and sell_prev > buy_prev)
-                    if two_bars_down and sellers_dominating:
-                        exit_price = p
-                        exit_reason = "exhaustion"
-                        exit_bar_k = k
-                        break
-            # TP: skip if "hold" (let run until reversal BOS or SL only)
-            if tp_style == "hold":
-                pass  # no TP; exit only on reversal_bos or sl or time
-            elif tp_style == "cob" and "cob_ask" in bars.columns:
-                cob_ask = bars.iloc[k].get("cob_ask") or []
-                if isinstance(cob_ask, list) and cob_ask:
-                    tp_price = _nearest_cob_resistance_above(
-                        cob_ask, p, cob_tp_threshold,
-                        buffer_pts=tp_buffer_pts_cob,
-                        key_levels=key_levels_at_entry,
-                        near_key_pts=cob_near_key_pts,
-                    )
-                    if tp_price is not None and tp_price > entry_price and p >= tp_price:
-                        # Only take TP if resistance is far enough above entry (hold for bigger move)
-                        min_tp_pts = params.get("min_tp_pts_above_entry", 0)
-                        if min_tp_pts <= 0 or (tp_price - entry_price) >= min_tp_pts * POINT:
+                exit_on_exhaustion = params.get("exit_on_exhaustion", False)
+                if exit_on_exhaustion and exit_price is None and k >= entry_bar_idx + 2 and "buy_vol" in bars.columns and "sell_vol" in bars.columns:
+                    unrealized_pts = (p - entry_price) / POINT
+                    if unrealized_pts > 5:
+                        prev_mid = bars["mid"].iloc[k - 1]
+                        prev2_mid = bars["mid"].iloc[k - 2]
+                        if p < prev_mid and prev_mid < prev2_mid and bars["sell_vol"].iloc[k] > bars["buy_vol"].iloc[k] and bars["sell_vol"].iloc[k - 1] > bars["buy_vol"].iloc[k - 1]:
+                            exit_price = p
+                            exit_reason = "exhaustion"
+                            exit_bar_k = k
+                            break
+                if tp_style == "hold":
+                    pass
+                elif tp_style == "cob" and "cob_ask" in bars.columns:
+                    cob_ask = bars.iloc[k].get("cob_ask") or []
+                    if isinstance(cob_ask, list) and cob_ask:
+                        tp_price = _nearest_cob_resistance_above(
+                            cob_ask, p, cob_tp_threshold,
+                            buffer_pts=tp_buffer_pts_cob,
+                            key_levels=key_levels_at_entry,
+                            near_key_pts=cob_near_key_pts,
+                        )
+                        if tp_price is not None and tp_price > entry_price and p >= tp_price:
+                            min_tp_pts = params.get("min_tp_pts_above_entry", 0)
+                            if min_tp_pts <= 0 or (tp_price - entry_price) >= min_tp_pts * POINT:
+                                exit_price = tp_price
+                                exit_reason = "tp"
+                                exit_bar_k = k
+                                break
+                if tp_style == "session_high" and exit_price is None:
+                    high_prior = bars["mid"].iloc[entry_bar_idx:k].max() if k > entry_bar_idx else entry_price
+                    if high_prior >= entry_price + params.get("min_run_pts", 10) * POINT:
+                        tp_price = high_prior - tp_buffer * POINT
+                        if tp_price > entry_price and p >= tp_price:
                             exit_price = tp_price
                             exit_reason = "tp"
                             exit_bar_k = k
                             break
-            if tp_style == "session_high" and exit_price is None:
-                high_prior = bars["mid"].iloc[entry_bar_idx:k].max() if k > entry_bar_idx else entry_price
-                min_run_pts = params.get("min_run_pts", 10)
-                if high_prior >= entry_price + min_run_pts * POINT:
-                    tp_price = high_prior - tp_buffer * POINT
-                    if tp_price > entry_price and p >= tp_price:
-                        exit_price = tp_price
+                if tp_style not in ("cob", "session_high", "hold") and exit_price is None:
+                    if p >= entry_price + tp_pts * TICK:
+                        exit_price = entry_price + tp_pts * TICK
                         exit_reason = "tp"
                         exit_bar_k = k
                         break
-            if tp_style not in ("cob", "session_high", "hold") and exit_price is None:
-                tp_price = entry_price + tp_pts * TICK
-                if p >= tp_price:
-                    exit_price = tp_price
-                    exit_reason = "tp"
+        else:
+            # Short: SL above resistance, exit on price >= sl_price or reversal BOS up
+            sl_price = running_high + sl_buffer_pts * POINT
+            dist_pts = sl_price - entry_price
+            if dist_pts < 3 * POINT or dist_pts > params.get("sl_max_pts", 25) * POINT:
+                sl_price = entry_price + sl_points_fallback * POINT
+            trail_sl_pts = params.get("trail_sl_pts", 15)
+            for k in range(entry_bar_idx + 1, len(bars)):
+                p = bars["mid"].iloc[k]
+                low_so_far = bars["mid"].iloc[entry_bar_idx : k + 1].min()
+                if trail_sl_pts and p <= entry_price - trail_sl_pts * POINT:
+                    sl_price = min(sl_price, entry_price + 2 * POINT)
+                if p >= sl_price:
+                    exit_price = sl_price
+                    exit_reason = "sl"
                     exit_bar_k = k
                     break
+                if exit_on_reversal_bos and k > entry_bar_idx + bos_lookback:
+                    sub = price[entry_bar_idx : k + 1]
+                    if len(sub) >= bos_lookback * 2 + 1 and _detect_bos(sub, bos_lookback, bos_ticks, "up"):
+                        exit_price = p
+                        exit_reason = "reversal_bos"
+                        exit_bar_k = k
+                        break
+                # Optional fixed TP below for shorts
+                if tp_style not in ("hold", "cob", "session_high") and exit_price is None:
+                    tp_price_short = entry_price - tp_pts * TICK
+                    if p <= tp_price_short:
+                        exit_price = tp_price_short
+                        exit_reason = "tp"
+                        exit_bar_k = k
+                        break
         max_hold_bars = params.get("max_hold_bars", 80)
         if exit_price is None and entry_bar_idx + max_hold_bars < len(bars):
             exit_bar_k = min(entry_bar_idx + max_hold_bars, len(bars) - 1)
             exit_price = bars["mid"].iloc[exit_bar_k]
             exit_reason = "time"
         if exit_price is not None:
-            pnl_ticks = (exit_price - entry_price) / TICK
+            pnl_ticks = (exit_price - entry_price) / TICK if side == "long" else (entry_price - exit_price) / TICK
             trade_pnls.append(pnl_ticks)
             if return_trade_details and exit_bar_k is not None:
                 high_run = bars["mid"].iloc[entry_bar_idx : exit_bar_k + 1].max()
                 low_run = bars["mid"].iloc[entry_bar_idx : exit_bar_k + 1].min()
-                mfe_pts = (high_run - entry_price) / POINT
-                mae_pts = (entry_price - low_run) / POINT
+                if side == "long":
+                    mfe_pts = (high_run - entry_price) / POINT
+                    mae_pts = (entry_price - low_run) / POINT
+                else:
+                    mfe_pts = (entry_price - low_run) / POINT
+                    mae_pts = (high_run - entry_price) / POINT
                 detail = {
                     "day": day_label,
+                    "side": side,
                     "entry_bar": entry_bar_idx,
                     "minutes_from_open": entry_bar_idx,
                     "exit_bar": exit_bar_k,
@@ -609,10 +674,10 @@ def run_backtest(
                     "exit_reason": exit_reason or "unknown",
                     "mfe_pts": mfe_pts,
                     "mae_pts": mae_pts,
-                    "acc_level": acc_level,
+                    "acc_level": level_at_entry,
                 }
                 if exit_reason == "tp":
-                    detail["tp_distance_pts"] = (exit_price - entry_price) / POINT
+                    detail["tp_distance_pts"] = abs(exit_price - entry_price) / POINT
                 else:
                     detail["tp_distance_pts"] = None
                 trade_details.append(detail)

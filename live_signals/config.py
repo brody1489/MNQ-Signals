@@ -40,12 +40,9 @@ EST = ZoneInfo("America/New_York")
 DATASET = "GLBX.MDP3"
 # Default mbp-1 (L1) for Standard plan — no MBP-10, so paid usage stays off. Set DATABENTO_SCHEMA=mbp-10 only if you have MBP-10.
 SCHEMA = os.environ.get("DATABENTO_SCHEMA", "mbp-1").strip() or "mbp-1"
-# Historical data is delayed; never request end time past (now - DATA_DELAY_MINUTES). Prevents 422 data_end_after_available_end.
+# Historical backfill only: end time capped at (now - DATA_DELAY_MINUTES) to avoid 422. Live stream is always real-time; delay does NOT apply to live.
 _DATA_DELAY = os.environ.get("DATABENTO_DATA_DELAY_MINUTES", "").strip()
-DATA_DELAY_MINUTES = int(_DATA_DELAY) if _DATA_DELAY.isdigit() else 20
+DATA_DELAY_MINUTES = int(_DATA_DELAY) if _DATA_DELAY.isdigit() else 0
 
-# Use Databento Live API for real-time bars (Standard plan has live). Set USE_LIVE_DATA=0 to fall back to Historical polling only.
-_USE_LIVE = os.environ.get("USE_LIVE_DATA", "1").strip().lower()
-USE_LIVE_DATA = _USE_LIVE in ("1", "true", "yes")
-# Use Databento Live API for real-time bars (Standard plan has live). If False, use Historical polling (~20 min delayed).
+# Use Databento Live API for real-time bars. Set USE_LIVE_DATA=0 to fall back to Historical polling (then delay applies).
 USE_LIVE_DATA = os.environ.get("USE_LIVE_DATA", "1").strip().lower() in ("1", "true", "yes")
