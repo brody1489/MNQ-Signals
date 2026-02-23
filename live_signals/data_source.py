@@ -6,6 +6,7 @@ from pathlib import Path
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 import tempfile
+import warnings
 import pandas as pd
 
 try:
@@ -17,6 +18,24 @@ from config import API_KEY, BAR_SEC, RTH_START_ET, EST, DATASET, SCHEMA, SYMBOL,
 
 # MNQ front month symbol for CME (e.g. MNQH6 = Mar 2026); update as needed or use continuous
 SYMBOL_RAW = "MNQH6"
+
+# Chunk size for backfill to keep each request under Databento's ~5 GB streaming recommendation
+BACKFILL_CHUNK_MINUTES = 30
+
+
+def _get_range_quiet(client, path, start_str, end_str):
+    """Call timeseries.get_range, suppressing BentoWarning about request size (we chunk backfill; poll is 2 min)."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        client.timeseries.get_range(
+            dataset=DATASET,
+            start=start_str,
+            end=end_str,
+            symbols=SYMBOL_RAW,
+            schema=SCHEMA,
+            stype_in="raw_symbol",
+            path=path,
+        )
 
 
 def _build_bars_from_replay(store, freq_sec: float = 60.0):
@@ -90,7 +109,7 @@ def _build_bars_from_replay(store, freq_sec: float = 60.0):
 def backfill_today_rth() -> tuple:
     """
     Fetch today's RTH from 9:30 ET to now (if we're in RTH). Returns (bars, trades_df) or (None, None).
-    Requires API_KEY set. If you start after 9:30, this loads from session start so strategy has context.
+    Uses 30-min chunks to stay under Databento's 5 GB streaming recommendation.
     """
     if not API_KEY or db is None:
         print("[backfill] Skipped: API_KEY not set or databento not installed.", flush=True)
@@ -103,36 +122,42 @@ def backfill_today_rth() -> tuple:
     now_utc_dt = now_et.astimezone(timezone.utc)
     end_utc_dt = now_utc_dt - timedelta(minutes=DATA_DELAY_MINUTES)
     end_utc_dt = max(end_utc_dt, start_utc_dt + timedelta(minutes=1))
-    start_utc = start_utc_dt.strftime("%Y-%m-%dT%H:%M:%S")
-    end_utc = end_utc_dt.strftime("%Y-%m-%dT%H:%M:%S")
     path = None
     try:
-        print(f"[backfill] Requesting: {start_utc} -> {end_utc} UTC (end capped by {DATA_DELAY_MINUTES} min delay) | symbol={SYMBOL_RAW} dataset={DATASET} schema={SCHEMA}", flush=True)
-        with tempfile.NamedTemporaryFile(suffix=".dbn", delete=False) as f:
-            path = f.name
-        Path(path).unlink(missing_ok=True)
+        print(f"[backfill] Requesting in {BACKFILL_CHUNK_MINUTES}-min chunks: {start_utc_dt.strftime('%Y-%m-%dT%H:%M:%S')} -> {end_utc_dt.strftime('%Y-%m-%dT%H:%M:%S')} UTC (end capped by {DATA_DELAY_MINUTES} min delay) | symbol={SYMBOL_RAW} dataset={DATASET} schema={SCHEMA}", flush=True)
         client = db.Historical(API_KEY)
-        client.timeseries.get_range(
-            dataset=DATASET,
-            start=start_utc,
-            end=end_utc,
-            symbols=SYMBOL_RAW,
-            schema=SCHEMA,
-            stype_in="raw_symbol",
-            path=path,
-        )
-        store = db.DBNStore.from_file(path)
-        bars, trades_df = _build_bars_from_replay(store, BAR_SEC)
-        Path(path).unlink(missing_ok=True)
-        if bars is None or len(bars) == 0:
+        chunk_bars = []
+        current = start_utc_dt
+        while current < end_utc_dt:
+            chunk_end = min(current + timedelta(minutes=BACKFILL_CHUNK_MINUTES), end_utc_dt)
+            start_str = current.strftime("%Y-%m-%dT%H:%M:%S")
+            end_str = chunk_end.strftime("%Y-%m-%dT%H:%M:%S")
+            with tempfile.NamedTemporaryFile(suffix=".dbn", delete=False) as f:
+                path = f.name
+            Path(path).unlink(missing_ok=True)
+            try:
+                _get_range_quiet(client, path, start_str, end_str)
+                store = db.DBNStore.from_file(path)
+                bars_chunk, _ = _build_bars_from_replay(store, BAR_SEC)
+                Path(path).unlink(missing_ok=True)
+                path = None
+                if bars_chunk is not None and len(bars_chunk) > 0:
+                    chunk_bars.append(bars_chunk)
+            except Exception as e:
+                if path and Path(path).exists():
+                    Path(path).unlink(missing_ok=True)
+                raise e
+            current = chunk_end
+        if not chunk_bars:
             print(
-                f"[backfill] API returned NO DATA for this range. Requested: {start_utc} to {end_utc} UTC, "
-                f"symbol={SYMBOL_RAW}, dataset={DATASET}, schema={SCHEMA}. "
+                f"[backfill] API returned NO DATA for this range. symbol={SYMBOL_RAW}, dataset={DATASET}, schema={SCHEMA}. "
                 "Possible: weekend/holiday, wrong symbol (e.g. roll MNQH6), or subscription doesn't include this data.",
                 flush=True,
             )
             return None, None
-        return bars, trades_df
+        bars = pd.concat(chunk_bars).sort_index()
+        bars = bars[~bars.index.duplicated(keep="first")]
+        return bars, pd.DataFrame(columns=["ts_recv", "side", "size"])
     except Exception as e:
         if path and Path(path).exists():
             Path(path).unlink(missing_ok=True)
@@ -173,10 +198,7 @@ def poll_latest_bar(start_ts: pd.Timestamp) -> tuple:
             path = f.name
         Path(path).unlink(missing_ok=True)
         client = db.Historical(API_KEY)
-        client.timeseries.get_range(
-            dataset=DATASET, start=start_str, end=end_str,
-            symbols=SYMBOL_RAW, schema=SCHEMA, stype_in="raw_symbol", path=path,
-        )
+        _get_range_quiet(client, path, start_str, end_str)
         store = db.DBNStore.from_file(path)
         bars, _ = _build_bars_from_replay(store, BAR_SEC)
         Path(path).unlink(missing_ok=True)
@@ -214,10 +236,7 @@ def get_recent_bars_and_running(
             path = f.name
         Path(path).unlink(missing_ok=True)
         client = db.Historical(API_KEY)
-        client.timeseries.get_range(
-            dataset=DATASET, start=start_str, end=end_str,
-            symbols=SYMBOL_RAW, schema=SCHEMA, stype_in="raw_symbol", path=path,
-        )
+        _get_range_quiet(client, path, start_str, end_str)
         store = db.DBNStore.from_file(path)
         bars, _ = _build_bars_from_replay(store, BAR_SEC)
         Path(path).unlink(missing_ok=True)

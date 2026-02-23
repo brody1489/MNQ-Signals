@@ -58,7 +58,11 @@ def _send_discord(message: str) -> None:
         )
         urllib.request.urlopen(req, timeout=5)
     except Exception as e:
-        print(f"[Discord] send failed: {e}", flush=True)
+        err = str(e)
+        if "403" in err or "Forbidden" in err:
+            print(f"[Discord] send failed: {e} — Check webhook URL (create a new one in Discord if needed).", flush=True)
+        else:
+            print(f"[Discord] send failed: {e}", flush=True)
 
 
 def _ensure_trade_log(base: Path) -> Path:
