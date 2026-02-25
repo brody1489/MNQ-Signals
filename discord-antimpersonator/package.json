@@ -1,0 +1,21 @@
+{
+  "name": "discord-antimpersonator",
+  "version": "1.0.0",
+  "description": "Discord anti-impersonation bot — bans users whose handle is within 1 character of protected members.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.6.0",
+    "discord.js": "^14.14.1",
+    "express": "^4.21.0"
+  },
+  "optionalDependencies": {
+    "dotenv": "^16.4.5"
+  }
+}

@@ -30,6 +30,40 @@ Rough runtime: about 1–1.5 hours (one day in memory at a time to limit RAM).
 
 Re-run **`run.cmd`** or **`python run_everything.py`**. It will skip any step that already has output and continue from the next one.
 
+## Long backtest (1 year L1 or 1 month L2)
+
+Runs your **fixed params** (same as live) over many trading days: **fetches one RTH day at a time**, runs backtest (longs + shorts), **discards raw data** so storage and RAM stay bounded. Uses **mbp-1 (L1)** by default (matches live, smaller size); optional **mbp-10 (L2)** for 1 month.
+
+**Requirements:** `DATABENTO_API_KEY` set (same as live/fetch). Params from `live_signals/params.json` or `data/best_params_v2.json` if present.
+
+**CMD (run from `orderflow_strategy`):**
+
+```cmd
+cd c:\Website_design\orderflow_strategy
+set DATABENTO_API_KEY=db-your-key-here
+python run_long_backtest.py --months 12
+```
+
+**Options:**
+
+| Command | Meaning |
+|--------|--------|
+| `python run_long_backtest.py --months 12` | 1 year of L1 (mbp-1), RTH only, 1-min bars. Deletes each day’s file after run to save space. |
+| `python run_long_backtest.py --months 1 --schema mbp-10` | 1 month of L2 (mbp-10). |
+| `python run_long_backtest.py --months 12 --dry-run` | Only list days and estimated cost/size; no fetch or backtest. |
+| `python run_long_backtest.py --months 12 --keep-files` | Keep `.dbn` files in `data/` after each day (for re-runs without re-fetch). |
+
+**Output:** Overall and by-month (or by-week if 1 month) breakdown: trades, wins, losses, **total PnL in points**, avg PnL per trade, **longs vs shorts** (each with same metrics), and cumulative PnL by day.
+
+**Exact 1-year window (e.g. match subscription “1 year L1” from a start date):**
+```cmd
+python run_long_backtest.py --start 2025-02-23 --end 2026-02-23
+```
+
+**If you see 402 account_insufficient_funds:** Your plan’s “1 year L1” can still require a positive **balance/budget** in the Databento portal (billing → add funds or set budget). If the range is the issue, use `--start` and `--end` so the window falls inside your included history (e.g. from the day you got access).
+
+**If you see 0 MB fetched / 0 trades every day:** The long backtest uses continuous front-month symbol `MNQ.c.0` so each date gets the correct contract. If you ran before this fix, delete `data/long_backtest_trades.jsonl` and re-run.
+
 ## Reference
 
 - **V1 baseline:** 15 trades, 93% WR, ~8 pt avg (9 days).

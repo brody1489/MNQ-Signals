@@ -56,42 +56,89 @@ def load_dbn_streaming(dbn_path: Path, freq_sec: float = 60.0, build_cob: bool =
     TICK_PX = 0.25  # MNQ
 
     def callback(r):
-        ts_ns = r.ts_recv
+        try:
+            ts_ns = getattr(r, "ts_recv", None)
+            if ts_ns is None:
+                return
+        except Exception:
+            return
         if first_ts_ns[0] is None:
             first_ts_ns[0] = ts_ns
         bar_ns = int(freq_sec * 1_000_000_000)
         bar_idx = (ts_ns - first_ts_ns[0]) // bar_ns
+        if bar_idx < 0:
+            return
 
-        if r.action == "T":
-            side = str(getattr(r, "side", "B"))  # B or A
-            trades_list.append((ts_ns, side, int(r.size)))
+        action = getattr(r, "action", None)
+        if action == "T":
+            side = str(getattr(r, "side", "B"))
+            size = int(getattr(r, "size", 0))
+            trades_list.append((ts_ns, side, size))
             if bar_idx not in bars_dict:
                 bars_dict[bar_idx] = {"mid_sum": 0.0, "mid_last": 0.0, "bid_sum": 0.0, "ask_sum": 0.0, "n": 0, "buy_vol": 0, "sell_vol": 0}
                 if build_cob:
                     bars_dict[bar_idx]["ask_at_price"] = defaultdict(float)
             d = bars_dict[bar_idx]
             if side == "B":
-                d["buy_vol"] = d.get("buy_vol", 0) + int(r.size)
+                d["buy_vol"] = d.get("buy_vol", 0) + size
             else:
-                d["sell_vol"] = d.get("sell_vol", 0) + int(r.size)
-        elif hasattr(r, "levels") and r.levels:
-            mid = (r.levels[0].pretty_bid_px + r.levels[0].pretty_ask_px) / 2
-            bid_d = sum(lev.bid_sz for lev in r.levels)
-            ask_d = sum(lev.ask_sz for lev in r.levels)
-            if bar_idx not in bars_dict:
-                bars_dict[bar_idx] = {"mid_sum": 0.0, "mid_last": mid, "bid_sum": 0.0, "ask_sum": 0.0, "n": 0, "buy_vol": 0, "sell_vol": 0}
+                d["sell_vol"] = d.get("sell_vol", 0) + size
+            # Trade-only bars: set mid from trade price so we have valid price series (MBP-1 has pretty_price/price)
+            trade_mid = getattr(r, "pretty_price", None)
+            if trade_mid is None or (isinstance(trade_mid, (int, float)) and trade_mid <= 0):
+                try:
+                    raw = getattr(r, "price", None)
+                    if isinstance(raw, (int, float)) and raw > 0:
+                        trade_mid = float(raw) / 1e9  # databento FIXED_PRICE_SCALE
+                except (TypeError, ZeroDivisionError):
+                    pass
+            if isinstance(trade_mid, (int, float)) and trade_mid > 0:
+                d["mid_last"] = float(trade_mid)
+            # Also use levels for mid/depth if present on trade record (BBO at time of trade)
+            levels = getattr(r, "levels", None) if hasattr(r, "levels") else None
+            if levels:
+                try:
+                    mid = (levels[0].pretty_bid_px + levels[0].pretty_ask_px) / 2
+                    bid_d = sum(lev.bid_sz for lev in levels)
+                    ask_d = sum(lev.ask_sz for lev in levels)
+                    d["mid_last"] = mid
+                    d["bid_sum"] = d.get("bid_sum", 0) + bid_d
+                    d["ask_sum"] = d.get("ask_sum", 0) + ask_d
+                    d["n"] = d.get("n", 0) + 1
+                    if build_cob:
+                        for lev in levels:
+                            try:
+                                px = round(lev.pretty_ask_px / TICK_PX) * TICK_PX
+                                d["ask_at_price"][px] += lev.ask_sz
+                            except (AttributeError, TypeError):
+                                pass
+                except (IndexError, AttributeError, TypeError):
+                    pass
+        else:
+            levels = getattr(r, "levels", None) if hasattr(r, "levels") else None
+            if levels:
+                try:
+                    mid = (levels[0].pretty_bid_px + levels[0].pretty_ask_px) / 2
+                    bid_d = sum(lev.bid_sz for lev in levels)
+                    ask_d = sum(lev.ask_sz for lev in levels)
+                except (IndexError, AttributeError, TypeError):
+                    return
+                if bar_idx not in bars_dict:
+                    bars_dict[bar_idx] = {"mid_sum": 0.0, "mid_last": mid, "bid_sum": 0.0, "ask_sum": 0.0, "n": 0, "buy_vol": 0, "sell_vol": 0}
+                    if build_cob:
+                        bars_dict[bar_idx]["ask_at_price"] = defaultdict(float)
+                d = bars_dict[bar_idx]
+                d["mid_last"] = mid
+                d["bid_sum"] += bid_d
+                d["ask_sum"] += ask_d
+                d["n"] += 1
                 if build_cob:
-                    bars_dict[bar_idx]["ask_at_price"] = defaultdict(float)
-            d = bars_dict[bar_idx]
-            d["mid_last"] = mid
-            d["bid_sum"] += bid_d
-            d["ask_sum"] += ask_d
-            d["n"] += 1
-            if build_cob:
-                for lev in r.levels:
-                    px = round(lev.pretty_ask_px / TICK_PX) * TICK_PX
-                    d["ask_at_price"][px] += lev.ask_sz
-
+                    for lev in levels:
+                        try:
+                            px = round(lev.pretty_ask_px / TICK_PX) * TICK_PX
+                            d["ask_at_price"][px] += lev.ask_sz
+                        except (AttributeError, TypeError):
+                            pass
     store.replay(callback)
     del store
 
@@ -102,12 +149,25 @@ def load_dbn_streaming(dbn_path: Path, freq_sec: float = 60.0, build_cob: bool =
     base = pd.Timestamp(first_ts_ns[0], unit="ns")
     times = [base + pd.Timedelta(seconds=int(i) * freq_sec) for i in bar_idx_sorted]
     rows = []
+    last_mid = 0.0
+    last_bid_depth = 0.0
+    last_ask_depth = 0.0
     for i in bar_idx_sorted:
         d = bars_dict[i]
+        mid = d["mid_last"] if d["mid_last"] else last_mid
+        if d["n"]:
+            bid_depth = d["bid_sum"] / d["n"]
+            ask_depth = d["ask_sum"] / d["n"]
+            last_mid = mid
+            last_bid_depth = bid_depth
+            last_ask_depth = ask_depth
+        else:
+            bid_depth = last_bid_depth
+            ask_depth = last_ask_depth
         row = {
-            "mid": d["mid_last"],
-            "bid_depth": d["bid_sum"] / d["n"] if d["n"] else 0,
-            "ask_depth": d["ask_sum"] / d["n"] if d["n"] else 0,
+            "mid": mid,
+            "bid_depth": bid_depth,
+            "ask_depth": ask_depth,
             "buy_vol": d.get("buy_vol", 0),
             "sell_vol": d.get("sell_vol", 0),
         }
@@ -118,6 +178,17 @@ def load_dbn_streaming(dbn_path: Path, freq_sec: float = 60.0, build_cob: bool =
         else:
             row["cob_ask"] = []
         rows.append(row)
+    # Back-fill leading bars that had no book update (mid/depth were 0)
+    first_valid = None
+    for idx, row in enumerate(rows):
+        if row["mid"] > 0:
+            first_valid = idx
+            break
+    if first_valid is not None and first_valid > 0:
+        for j in range(first_valid):
+            rows[j]["mid"] = rows[first_valid]["mid"]
+            rows[j]["bid_depth"] = rows[first_valid]["bid_depth"]
+            rows[j]["ask_depth"] = rows[first_valid]["ask_depth"]
     bars = pd.DataFrame(rows, index=pd.DatetimeIndex(times))
     bars.index.name = "ts"
 
@@ -389,21 +460,20 @@ def run_backtest(
     min_pa = params.get("min_passive_accumulation_count", 3)
     cob = params.get("passive_cob_threshold", 50)  # filter: only 50+ COB = heatmap levels
     passive_lookback_bars = params.get("passive_lookback_bars", 60)  # in-the-move: e.g. 60 min
-    kl_pts = params.get("key_level_points", 10)
-    agg_vol = params.get("aggressive_min_volume", 200)
-    agg_win = params.get("aggressive_window_seconds", 10)
-    bos_lookback = params.get("bos_swing_lookback", 15)  # bars: 15–30 min for BOS in the move
-    bos_ticks = params.get("bos_min_break_ticks", 4)
+    kl_pts = params.get("key_level_points", 20)   # baseline 20 (same as 9-day edge)
+    agg_vol = params.get("aggressive_min_volume", 150)   # baseline 150
+    agg_win = params.get("aggressive_window_seconds", 60)  # baseline 60 sec
+    bos_lookback = params.get("bos_swing_lookback", 10)   # baseline 10 bars
+    bos_ticks = params.get("bos_min_break_ticks", 2)      # baseline 2 ticks
     bos_search_bars = params.get("bos_search_bars", 120)  # max bars to search for BOS (e.g. 2 hr)
     tp_pts = params.get("tp_points", 40)
     sl_ticks = params.get("sl_ticks", 12)
-    tp_style = params.get("tp_style", "fixed")  # "fixed" | "session_high" | "cob" (adaptive: real resistance from heatmap)
-    tp_buffer = params.get("tp_buffer", 5)       # points below session_high for TP (or below COB resistance when cob)
-    cob_tp_threshold = params.get("cob_tp_threshold", 30)  # min ask depth to treat as real resistance (20, 30, 40...)
-    tp_buffer_pts_cob = params.get("tp_buffer_pts_cob", 3)  # TP just below resistance (e.g. zone 23298-23305 -> TP 23295)
+    tp_style = params.get("tp_style", "cob")      # baseline "cob" (real resistance from heatmap)
+    tp_buffer = params.get("tp_buffer", 15)       # baseline 15
+    cob_tp_threshold = params.get("cob_tp_threshold", 30)  # min ask depth to treat as real resistance
+    tp_buffer_pts_cob = params.get("tp_buffer_pts_cob", 2)  # baseline 2 pts below resistance
     cob_near_key_pts = params.get("cob_near_key_pts", 20)   # prefer resistance within this of key/round levels
     exit_on_reversal_bos = params.get("exit_on_reversal_bos", True)
-    # Level-based SL: below next support (strong buyers); fallback if no level in range
     sl_style = params.get("sl_style", "level")    # "level" | "fixed"
     sl_buffer_pts = params.get("sl_buffer_pts", 2)       # points below support
     sl_points_fallback = params.get("sl_points_fallback", 15)  # pts below entry when no level
@@ -412,7 +482,7 @@ def run_backtest(
     price = bars["mid"].values
     trade_pnls = []
     trade_details = []
-    bounce_bars = params.get("bounce_bars", 5)  # bars after retest to confirm bounce
+    bounce_bars = params.get("bounce_bars", 3)   # baseline 3 bars after retest
     enable_shorts = params.get("enable_shorts", True)
     i = 0
 

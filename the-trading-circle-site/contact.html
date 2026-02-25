@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact | The Trading Circle</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="header">
+    <a href="index.html" class="logo-wrap">
+      <img src="img/logo.png" alt="The Trading Circle" class="logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+      <span class="logo-fallback">TTC</span>
+      <span class="logo-text">The Trading Circle</span>
+    </a>
+    <nav class="nav">
+      <a href="index.html">Home</a>
+      <a href="contact.html">Contact</a>
+      <a href="#" class="btn-cta" id="join-discord-btn">Join Discord</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="page-inner">
+      <h1>Contact</h1>
+      <p>Have a question or want to get in touch? Send a message and we’ll get back to you.</p>
+      <form class="contact-form" id="contact-form" action="#" method="get">
+        <div class="form-group">
+          <label for="email">Your email</label>
+          <input type="email" id="email" name="email" placeholder="you@example.com" required />
+        </div>
+        <div class="form-group">
+          <label for="message">Message</label>
+          <textarea id="message" name="message" placeholder="What would you like to say?" required></textarea>
+        </div>
+        <button type="submit" class="submit-btn">Send message</button>
+      </form>
+      <p style="margin-top: 1.5rem; font-size: 0.85rem; color: var(--gray);">Or email directly: <a href="#" id="contact-email">contact@thetradingcircle.com</a></p>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <a href="resources.html">Resources</a>
+    <a href="disclaimer.html">Disclaimer</a>
+    <span>© <span id="year"></span> The Trading Circle</span>
+  </footer>
+
+  <script src="config.js"></script>
+  <script>
+    (function() {
+      var c = window.TTC_CONFIG || {};
+      document.getElementById('join-discord-btn').href = c.discordInviteUrl || '#';
+      document.getElementById('contact-email').href = 'mailto:' + (c.contactEmail || 'contact@thetradingcircle.com');
+      document.getElementById('contact-email').textContent = c.contactEmail || 'contact@thetradingcircle.com';
+      document.getElementById('year').textContent = new Date().getFullYear();
+
+      document.getElementById('contact-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var email = document.getElementById('email').value;
+        var message = document.getElementById('message').value;
+        var mailto = 'mailto:' + (c.contactEmail || 'contact@thetradingcircle.com') +
+          '?subject=Contact from The Trading Circle website' +
+          '&body=' + encodeURIComponent('From: ' + email + '\n\n' + message);
+        window.location.href = mailto;
+      });
+    })();
+  </script>
+</body>
+</html>

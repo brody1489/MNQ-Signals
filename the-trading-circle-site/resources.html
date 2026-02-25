@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Resources | The Trading Circle</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="header">
+    <a href="index.html" class="logo-wrap">
+      <img src="img/logo.png" alt="The Trading Circle" class="logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+      <span class="logo-fallback">TTC</span>
+      <span class="logo-text">The Trading Circle</span>
+    </a>
+    <nav class="nav">
+      <a href="index.html">Home</a>
+      <a href="contact.html">Contact</a>
+      <a href="#" class="btn-cta" id="join-discord-btn">Join Discord</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="page-inner">
+      <h1>Resources</h1>
+      <p>Terminology, basics, and psychology — all in one place. Open any link in a new tab to read.</p>
+      <ul class="resources-list">
+        <li><a href="https://tinyurl.com/Stock-Terms" target="_blank" rel="noopener"><span class="emoji">📘</span><span class="label">Stock + Momentum Terms</span><span class="arrow">→</span></a></li>
+        <li><a href="https://tinyurl.com/Options-Terms" target="_blank" rel="noopener"><span class="emoji">📙</span><span class="label">Options Terms</span><span class="arrow">→</span></a></li>
+        <li><a href="https://tinyurl.com/Futures-Terms" target="_blank" rel="noopener"><span class="emoji">📗</span><span class="label">Futures Terms</span><span class="arrow">→</span></a></li>
+        <li><a href="https://tinyurl.com/Forex-Terms" target="_blank" rel="noopener"><span class="emoji">📕</span><span class="label">Forex Terms</span><span class="arrow">→</span></a></li>
+        <li><a href="https://tinyurl.com/Crypto-Terms" target="_blank" rel="noopener"><span class="emoji">📓</span><span class="label">Crypto Terms</span><span class="arrow">→</span></a></li>
+        <li><a href="https://tinyurl.com/Risk-Terms" target="_blank" rel="noopener"><span class="emoji">🧠</span><span class="label">Execution & Risk Terms</span><span class="arrow">→</span></a></li>
+        <li><a href="https://tinyurl.com/Trading-Basics" target="_blank" rel="noopener"><span class="emoji">📚</span><span class="label">Trading Basics</span><span class="arrow">→</span></a></li>
+        <li><a href="https://tinyurl.com/Trading-Explained" target="_blank" rel="noopener"><span class="emoji">🔍</span><span class="label">Trading Explained</span><span class="arrow">→</span></a></li>
+        <li><a href="https://tinyurl.com/Trading-Taxes" target="_blank" rel="noopener"><span class="emoji">💰</span><span class="label">Trading Taxes</span><span class="arrow">→</span></a></li>
+        <li><a href="https://tinyurl.com/market-psychology" target="_blank" rel="noopener"><span class="emoji">🧩</span><span class="label">Psychology</span><span class="arrow">→</span></a></li>
+      </ul>
+      <p style="margin-top: 2rem;"><a href="index.html" class="link-gold">← Back to Home</a></p>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <a href="resources.html">Resources</a>
+    <a href="disclaimer.html">Disclaimer</a>
+    <span>© <span id="year"></span> The Trading Circle</span>
+  </footer>
+
+  <script src="config.js"></script>
+  <script>
+    (function() {
+      var c = window.TTC_CONFIG || {};
+      document.getElementById('join-discord-btn').href = c.discordInviteUrl || '#';
+      document.getElementById('year').textContent = new Date().getFullYear();
+    })();
+  </script>
+</body>
+</html>
