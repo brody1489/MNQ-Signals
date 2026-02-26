@@ -74,8 +74,9 @@ client.once('ready', () => {
   console.log(`[welcome] Logged in as ${client.user.tag}`);
   if (config.STATS_CHANNEL_ID) {
     const cron = require('node-cron');
-    cron.schedule(config.STATS_DAILY_CRON, () => sendDailyMemberStats(), { timezone: 'UTC' });
-    console.log('[welcome] Daily member stats scheduled:', config.STATS_DAILY_CRON);
+    const tz = config.STATS_CRON_TZ || 'America/New_York';
+    cron.schedule(config.STATS_DAILY_CRON, () => sendDailyMemberStats(), { timezone: tz });
+    console.log('[welcome] Daily member stats scheduled:', config.STATS_DAILY_CRON, 'TZ:', tz);
   }
 });
 

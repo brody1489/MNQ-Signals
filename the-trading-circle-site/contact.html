@@ -9,8 +9,8 @@
 <body>
   <header class="header">
     <a href="index.html" class="logo-wrap">
-      <img src="img/logo.png" alt="The Trading Circle" class="logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
-      <span class="logo-fallback">TTC</span>
+      <img src="img/logo.png" alt="The Trading Circle" class="logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='none'; this.nextElementSibling.nextElementSibling.style.display='inline';" />
+      <span class="logo-fallback" aria-hidden="true">TTC</span>
       <span class="logo-text">The Trading Circle</span>
     </a>
     <nav class="nav">
@@ -24,23 +24,23 @@
     <div class="page-inner">
       <h1>Contact</h1>
       <p>Have a question or want to get in touch? Send a message and we’ll get back to you.</p>
-      <form class="contact-form" id="contact-form" action="#" method="get">
-        <div class="form-group">
+      <form class="contact-form" id="contact-form" action="#" method="post">
+        <div class="form-group" id="email-group">
           <label for="email">Your email</label>
-          <input type="email" id="email" name="email" placeholder="you@example.com" required />
+          <input type="email" id="email" name="email" placeholder="you@example.com" required autocomplete="email" />
+          <span class="form-error" id="email-error" aria-live="polite"></span>
         </div>
         <div class="form-group">
           <label for="message">Message</label>
           <textarea id="message" name="message" placeholder="What would you like to say?" required></textarea>
         </div>
-        <button type="submit" class="submit-btn">Send message</button>
+        <p class="form-status" id="form-status" aria-live="polite"></p>
+        <button type="submit" class="submit-btn" id="submit-btn">Send message</button>
       </form>
-      <p style="margin-top: 1.5rem; font-size: 0.85rem; color: var(--gray);">Or email directly: <a href="#" id="contact-email">contact@thetradingcircle.com</a></p>
     </div>
   </main>
 
   <footer class="footer">
-    <a href="resources.html">Resources</a>
     <a href="disclaimer.html">Disclaimer</a>
     <span>© <span id="year"></span> The Trading Circle</span>
   </footer>
@@ -48,20 +48,73 @@
   <script src="config.js"></script>
   <script>
     (function() {
-      var c = window.TTC_CONFIG || {};
-      document.getElementById('join-discord-btn').href = c.discordInviteUrl || '#';
-      document.getElementById('contact-email').href = 'mailto:' + (c.contactEmail || 'contact@thetradingcircle.com');
-      document.getElementById('contact-email').textContent = c.contactEmail || 'contact@thetradingcircle.com';
-      document.getElementById('year').textContent = new Date().getFullYear();
+      function applyConfig() {
+        var c = window.TTC_CONFIG || {};
+        document.getElementById('join-discord-btn').href = c.discordInviteUrl || '#';
+        document.getElementById('year').textContent = new Date().getFullYear();
+      }
+      applyConfig();
+      fetch('/api/config.json').then(function(r) { return r.ok ? r.json() : null; }).then(function(c) {
+        if (c) { window.TTC_CONFIG = c; applyConfig(); }
+      }).catch(function() {});
 
-      document.getElementById('contact-form').addEventListener('submit', function(e) {
+      function validEmail(email) {
+        if (!email || typeof email !== 'string') return false;
+        var t = email.trim();
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t) && t.length < 254;
+      }
+
+      var form = document.getElementById('contact-form');
+      var emailGroup = document.getElementById('email-group');
+      var emailInput = document.getElementById('email');
+      var emailError = document.getElementById('email-error');
+      var formStatus = document.getElementById('form-status');
+      var submitBtn = document.getElementById('submit-btn');
+
+      form.addEventListener('submit', function(e) {
         e.preventDefault();
-        var email = document.getElementById('email').value;
-        var message = document.getElementById('message').value;
-        var mailto = 'mailto:' + (c.contactEmail || 'contact@thetradingcircle.com') +
-          '?subject=Contact from The Trading Circle website' +
-          '&body=' + encodeURIComponent('From: ' + email + '\n\n' + message);
-        window.location.href = mailto;
+        emailGroup.classList.remove('form-group--error');
+        emailError.textContent = '';
+        formStatus.textContent = '';
+
+        var email = emailInput.value.trim();
+        var message = document.getElementById('message').value.trim();
+
+        if (!validEmail(email)) {
+          emailGroup.classList.add('form-group--error');
+          emailError.textContent = 'Not a valid email.';
+          emailInput.focus();
+          return;
+        }
+
+        submitBtn.disabled = true;
+        formStatus.textContent = 'Sending…';
+
+        fetch('/api/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email, message: message })
+        }).then(function(r) {
+          return r.json().then(function(data) { return { ok: r.ok, status: r.status, data: data }; });
+        }).then(function(result) {
+          if (result.ok) {
+            formStatus.textContent = 'Message sent. We’ll get back to you soon.';
+            formStatus.className = 'form-status form-status--success';
+            form.reset();
+          } else if (result.status === 400 && result.data && result.data.error === 'invalid_email') {
+            emailGroup.classList.add('form-group--error');
+            emailError.textContent = 'Not a valid email.';
+            formStatus.textContent = '';
+          } else {
+            formStatus.textContent = 'Something went wrong. Try again or email us directly.';
+            formStatus.className = 'form-status form-status--error';
+          }
+        }).catch(function() {
+          formStatus.textContent = 'Something went wrong. Try again or email us directly.';
+          formStatus.className = 'form-status form-status--error';
+        }).finally(function() {
+          submitBtn.disabled = false;
+        });
       });
     })();
   </script>

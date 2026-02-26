@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel layout sketch | The Trading Circle</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    /* Sketch-only: panel container and nav */
+    .sketch-nav {
+      display: flex;
+      gap: 1rem;
+      padding: 1rem 2rem;
+      background: rgba(255,255,255,0.04);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      flex-wrap: wrap;
+    }
+    .sketch-nav a {
+      color: var(--gold);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .sketch-nav a:hover { text-decoration: underline; }
+    .sketch-panel {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+    .sketch-panel h2 {
+      color: var(--gold);
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+    .sketch-back {
+      display: inline-block;
+      margin-bottom: 1.5rem;
+      color: var(--gray);
+      font-size: 0.9rem;
+      text-decoration: none;
+    }
+    .sketch-back:hover { color: var(--gold); }
+
+    /* Real-Time: 4 category cards */
+    .rt-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+    @media (max-width: 768px) { .rt-grid { grid-template-columns: repeat(2, 1fr); } }
+    .rt-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 1.25rem;
+      text-align: center;
+    }
+    .rt-card .rt-label {
+      color: var(--gold);
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 0.75rem;
+    }
+    .rt-chart {
+      height: 48px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 4px;
+      margin-bottom: 0.75rem;
+    }
+    .rt-ticker { font-weight: 600; color: var(--text); }
+    .rt-gain { color: var(--gold); font-size: 0.95rem; }
+
+    /* Educating: bands */
+    .edu-band {
+      margin-bottom: 2.5rem;
+      padding: 1.5rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .edu-band h3 { color: var(--gold); font-size: 1.1rem; margin-bottom: 0.75rem; }
+    .edu-band p { color: var(--gray); font-size: 0.95rem; max-width: 640px; }
+    .edu-band ul { margin: 0.5rem 0 0 1.25rem; color: var(--gray); font-size: 0.95rem; }
+
+    /* Active Traders: PFP left (centered vertically), name + role right */
+    .at-intro {
+      color: var(--gray);
+      font-size: 0.9rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    .at-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem;
+    }
+    .at-card {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+    }
+    .at-pfp {
+      width: 52px;
+      height: 52px;
+      min-width: 52px;
+      border-radius: 50%;
+      background: var(--gold);
+      opacity: 0.35;
+    }
+    .at-info { flex: 1; min-width: 0; }
+    .at-name { font-weight: 600; color: var(--text); margin-bottom: 0.2rem; font-size: 1rem; }
+    .at-role { font-size: 0.85rem; color: var(--gold); }
+
+    /* Track Record: stats + carousel */
+    .tr-stats {
+      display: flex;
+      justify-content: center;
+      gap: 3rem;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+      padding: 1.5rem;
+      background: rgba(201, 162, 39, 0.06);
+      border: 1px solid rgba(201, 162, 39, 0.2);
+      border-radius: 10px;
+    }
+    .tr-stat { text-align: center; }
+    .tr-stat .tr-value { font-size: 1.75rem; font-weight: 700; color: var(--gold); }
+    .tr-stat .tr-label { font-size: 0.85rem; color: var(--gray); margin-top: 0.25rem; }
+    .tr-carousel-wrap {
+      overflow: hidden;
+      padding: 0.5rem 0;
+    }
+    .tr-carousel {
+      display: flex;
+      gap: 1rem;
+      width: max-content;
+      animation: tr-scroll 40s linear infinite;
+    }
+    .tr-carousel:hover { animation-play-state: paused; }
+    @keyframes tr-scroll {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .tr-trade {
+      flex: 0 0 200px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    .tr-trade .tr-ticker { font-weight: 600; color: var(--text); }
+    .tr-trade .tr-meta { font-size: 0.8rem; color: var(--gray); margin: 0.25rem 0; }
+    .tr-trade .tr-result { color: var(--gold); font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <nav class="sketch-nav">
+    <span style="color: var(--gray);">Sketch — jump to panel:</span>
+    <a href="#realtime">Real-Time Trades</a>
+    <a href="#educating">Educating</a>
+    <a href="#traders">Active Traders</a>
+    <a href="#track">Track Record</a>
+    <a href="index.html">← Back to site</a>
+  </nav>
+
+  <!-- 1) Real-Time Trades -->
+  <section id="realtime" class="sketch-panel">
+    <a href="#" class="sketch-back">← Back (from card)</a>
+    <h2>Real-Time Trades</h2>
+    <p style="color: var(--gray); text-align: center; margin-bottom: 1.5rem; font-size: 0.9rem;">Featured trade ideas by category. For education only.</p>
+    <div class="rt-grid">
+      <div class="rt-card">
+        <div class="rt-label">Options</div>
+        <div class="rt-chart"></div>
+        <div class="rt-ticker">SPY</div>
+        <div class="rt-gain">+12%</div>
+      </div>
+      <div class="rt-card">
+        <div class="rt-label">Stocks</div>
+        <div class="rt-chart"></div>
+        <div class="rt-ticker">NVDA</div>
+        <div class="rt-gain">+8%</div>
+      </div>
+      <div class="rt-card">
+        <div class="rt-label">Futures</div>
+        <div class="rt-chart"></div>
+        <div class="rt-ticker">ES</div>
+        <div class="rt-gain">+24 pts</div>
+      </div>
+      <div class="rt-card">
+        <div class="rt-label">Crypto</div>
+        <div class="rt-chart"></div>
+        <div class="rt-ticker">BTC</div>
+        <div class="rt-gain">+5%</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2) Educating -->
+  <section id="educating" class="sketch-panel">
+    <a href="#" class="sketch-back">← Back</a>
+    <h2>Educating Community</h2>
+    <div class="edu-band">
+      <h3>Resources and language</h3>
+      <p>We use plain language and real charts. The same terms and ideas show up again and again so they actually stick.</p>
+      <ul>
+        <li>Short explanations you can revisit later</li>
+        <li>Examples built around real market moves</li>
+      </ul>
+    </div>
+    <div class="edu-band">
+      <h3>How traders and members share ideas</h3>
+      <p>Traders and members post chart ideas, what they tried, and what they learned from it. These are conversations about what people are seeing – not signals telling you what to do.</p>
+    </div>
+    <div class="edu-band">
+      <h3>What you can expect</h3>
+      <ul>
+        <li>Live commentary while markets are moving</li>
+        <li>Members explaining the “why” behind their ideas</li>
+        <li>Resources you can scroll back to any time</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 3) Active Traders (from your Discord: Options, Stock, Future, Crypto) -->
+  <section id="traders" class="sketch-panel">
+    <a href="#" class="sketch-back">← Back</a>
+    <h2>Active Traders</h2>
+    <p class="at-intro">Analysts by focus area</p>
+    <div class="at-grid">
+      <div class="at-card"><div class="at-pfp"></div><div class="at-info"><div class="at-name">Dorado</div><div class="at-role">Options analyst</div></div></div>
+      <div class="at-card"><div class="at-pfp"></div><div class="at-info"><div class="at-name">PvP</div><div class="at-role">Options analyst</div></div></div>
+      <div class="at-card"><div class="at-pfp"></div><div class="at-info"><div class="at-name">Hengy</div><div class="at-role">Stock analyst</div></div></div>
+      <div class="at-card"><div class="at-pfp"></div><div class="at-info"><div class="at-name">Luxe</div><div class="at-role">Stock analyst</div></div></div>
+      <div class="at-card"><div class="at-pfp"></div><div class="at-info"><div class="at-name">Fomo</div><div class="at-role">Stock analyst</div></div></div>
+      <div class="at-card"><div class="at-pfp"></div><div class="at-info"><div class="at-name">Mitro</div><div class="at-role">Futures analyst</div></div></div>
+      <div class="at-card"><div class="at-pfp"></div><div class="at-info"><div class="at-name">Viper</div><div class="at-role">Futures analyst</div></div></div>
+      <div class="at-card"><div class="at-pfp"></div><div class="at-info"><div class="at-name">Stormzyy</div><div class="at-role">Futures analyst</div></div></div>
+      <div class="at-card"><div class="at-pfp"></div><div class="at-info"><div class="at-name">Toph</div><div class="at-role">Futures analyst</div></div></div>
+      <div class="at-card"><div class="at-pfp"></div><div class="at-info"><div class="at-name">Cashout</div><div class="at-role">Crypto analyst</div></div></div>
+      <div class="at-card"><div class="at-pfp"></div><div class="at-info"><div class="at-name">Timm</div><div class="at-role">Crypto analyst</div></div></div>
+    </div>
+  </section>
+
+  <!-- 4) Track Record (live stats in panel only; home card has no %) -->
+  <section id="track" class="sketch-panel">
+    <a href="#" class="sketch-back">← Back</a>
+    <h2>Track Record</h2>
+    <p style="color: var(--gray); text-align: center; max-width: 560px; margin: 0 auto 1.25rem; font-size: 0.95rem;">We track every idea our analysts share. The numbers below are all-time and updated daily from real outcomes.</p>
+    <div class="tr-stats">
+      <div class="tr-stat">
+        <div class="tr-value">90%</div>
+        <div class="tr-label">All-time win rate</div>
+      </div>
+      <div class="tr-stat">
+        <div class="tr-value">56,104.02%</div>
+        <div class="tr-label">All-time server gains</div>
+      </div>
+    </div>
+    <p style="color: var(--gray); font-size: 0.85rem; text-align: center; margin-bottom: 0.5rem;">Based on tracked idea outcomes. For education only.</p>
+    <p style="color: var(--gold); font-size: 0.9rem; margin-bottom: 1rem;">Featured trades</p>
+    <div class="tr-carousel-wrap">
+      <div class="tr-carousel" id="tr-carousel">
+        <!-- duplicated so infinite scroll: 2x same set -->
+        <div class="tr-trade"><div class="tr-ticker">SPY</div><div class="tr-meta">Options · Nov 2025</div><div class="tr-result">+12%</div></div>
+        <div class="tr-trade"><div class="tr-ticker">ES</div><div class="tr-meta">Futures · Nov 2025</div><div class="tr-result">+24 pts</div></div>
+        <div class="tr-trade"><div class="tr-ticker">NVDA</div><div class="tr-meta">Stocks · Oct 2025</div><div class="tr-result">+8%</div></div>
+        <div class="tr-trade"><div class="tr-ticker">BTC</div><div class="tr-meta">Crypto · Oct 2025</div><div class="tr-result">+5%</div></div>
+        <div class="tr-trade"><div class="tr-ticker">AAPL</div><div class="tr-meta">Options · Oct 2025</div><div class="tr-result">+6%</div></div>
+        <div class="tr-trade"><div class="tr-ticker">TSLA</div><div class="tr-meta">Stocks · Nov 2025</div><div class="tr-result">+9%</div></div>
+        <div class="tr-trade"><div class="tr-ticker">NQ</div><div class="tr-meta">Futures · Nov 2025</div><div class="tr-result">+18 pts</div></div>
+        <div class="tr-trade"><div class="tr-ticker">ETH</div><div class="tr-meta">Crypto · Nov 2025</div><div class="tr-result">+7%</div></div>
+        <div class="tr-trade"><div class="tr-ticker">SPY</div><div class="tr-meta">Options · Nov 2025</div><div class="tr-result">+12%</div></div>
+        <div class="tr-trade"><div class="tr-ticker">ES</div><div class="tr-meta">Futures · Nov 2025</div><div class="tr-result">+24 pts</div></div>
+        <div class="tr-trade"><div class="tr-ticker">NVDA</div><div class="tr-meta">Stocks · Oct 2025</div><div class="tr-result">+8%</div></div>
+        <div class="tr-trade"><div class="tr-ticker">BTC</div><div class="tr-meta">Crypto · Oct 2025</div><div class="tr-result">+5%</div></div>
+        <div class="tr-trade"><div class="tr-ticker">AAPL</div><div class="tr-meta">Options · Oct 2025</div><div class="tr-result">+6%</div></div>
+        <div class="tr-trade"><div class="tr-ticker">TSLA</div><div class="tr-meta">Stocks · Nov 2025</div><div class="tr-result">+9%</div></div>
+        <div class="tr-trade"><div class="tr-ticker">NQ</div><div class="tr-meta">Futures · Nov 2025</div><div class="tr-result">+18 pts</div></div>
+        <div class="tr-trade"><div class="tr-ticker">ETH</div><div class="tr-meta">Crypto · Nov 2025</div><div class="tr-result">+7%</div></div>
+      </div>
+    </div>
+  </section>
+</body>
+</html>

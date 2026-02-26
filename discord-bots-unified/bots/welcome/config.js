@@ -20,7 +20,8 @@ module.exports = {
   DISCORD_BOT_TOKEN: process.env.DISCORD_BOT_TOKEN,
   GUILD_ID: process.env.GUILD_ID,
   WELCOME_MESSAGE: process.env.WELCOME_MESSAGE || DEFAULT_MESSAGE,
-  // Daily member-count report (optional). Channel to post to; cron = "minute hour * * *" (UTC).
+  // Daily member-count report (optional). Channel to post to; cron = "minute hour * * *".
   STATS_CHANNEL_ID: process.env.STATS_CHANNEL_ID || null,
-  STATS_DAILY_CRON: process.env.STATS_DAILY_CRON || '0 20 * * *', // default 8pm UTC daily
+  STATS_DAILY_CRON: process.env.STATS_DAILY_CRON || '0 20 * * *', // default 8pm daily
+  STATS_CRON_TZ: process.env.STATS_CRON_TZ || 'America/New_York',   // 8pm EST
 };

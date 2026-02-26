@@ -9,8 +9,8 @@
 <body>
   <header class="header">
     <a href="index.html" class="logo-wrap">
-      <img src="img/logo.png" alt="The Trading Circle" class="logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
-      <span class="logo-fallback">TTC</span>
+      <img src="img/logo.png" alt="The Trading Circle" class="logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='none'; this.nextElementSibling.nextElementSibling.style.display='inline';" />
+      <span class="logo-fallback" aria-hidden="true">TTC</span>
       <span class="logo-text">The Trading Circle</span>
     </a>
     <nav class="nav">
@@ -23,28 +23,14 @@
   <main>
     <div class="page-inner disclaimer-content">
       <h1>Disclaimer</h1>
-
-      <h2>General disclaimer</h2>
-      <p>This is NOT an investment advisory and should not be used to make investment decisions. Information provided by The Trading Circle should only be considered for informational purposes.</p>
-      <p>The Trading Circle and its owners, moderators, and analysts accept no liability for any direct or consequential loss arising from any use of information found within our Discord server or related channels. The reader bears responsibility for his or her own investment research and decisions.</p>
-      <p>Information found on The Trading Circle server is not intended to be used as the sole basis of any investment decision, nor should it be construed as advice designed to meet the investment needs of any particular investor. No one in The Trading Circle Discord group is registered as a security broker-dealer or an investment adviser. No information is intended as securities brokerage, investment, tax, accounting, or legal advice, as an offer or solicitation of an offer to buy or sell, or as an endorsement, recommendation or sponsorship of any company, security or fund.</p>
-      <p>The Trading Circle and its owners and moderators cannot and do not assess, verify or guarantee the adequacy, accuracy or completeness of any information, the suitability or profitability of any particular investment, or the potential value of any investment or informational source.</p>
-      <p>Please be aware that when trading stocks, options, and futures you can suffer a loss greater than your total account balance. By entering The Trading Circle server, you are agreeing to waive all liability of losses you may suffer. If you do not agree to any portion of this disclaimer, you are not to access anything related to The Trading Circle.</p>
-
-      <h2>Terms & conditions</h2>
-      <p>The Trading Circle is a discussion forum intended solely for entertainment and informational purposes. Consult your tax and financial advisors to determine what financial and tax strategies may be right for you. Investor protection and other important information is available at <a href="https://www.sec.gov/" target="_blank" rel="noopener">SEC.gov</a>.</p>
-      <p>By participating in The Trading Circle by becoming a member of our Discord server, or otherwise joining a channel we operate, you acknowledge and agree that these terms and conditions are a binding contract between you and The Trading Circle.</p>
-      <p>If you do not agree with these terms, then do not read, participate, follow or otherwise contribute to The Trading Circle.</p>
-      <p>By participating you acknowledge that The Trading Circle DOES NOT PROVIDE FINANCIAL, INVESTMENT OR TAX ADVICE. Any information or discussion provided in posts or other media is solely for entertainment and informational purposes.</p>
-      <p>We may suspend a member or participant for any reason and for no reason at all, to the extent permitted by law.</p>
-      <p>In no event shall The Trading Circle be liable for any damages (including, but not limited to, lost profits, or damages resulting from lost data or business interruption) resulting from the information provided or posted on our forum. The Trading Circle is not liable for any personal injury caused by your use or misuse of information provided.</p>
-
+      <div id="disclaimer-body">
+        <p class="disclaimer-loading">Loading…</p>
+      </div>
       <p style="margin-top: 2rem;"><a href="index.html" class="link-gold">← Back to Home</a></p>
     </div>
   </main>
 
   <footer class="footer">
-    <a href="resources.html">Resources</a>
     <a href="disclaimer.html">Disclaimer</a>
     <span>© <span id="year"></span> The Trading Circle</span>
   </footer>
@@ -55,6 +41,16 @@
       var c = window.TTC_CONFIG || {};
       document.getElementById('join-discord-btn').href = c.discordInviteUrl || '#';
       document.getElementById('year').textContent = new Date().getFullYear();
+
+      var el = document.getElementById('disclaimer-body');
+      fetch('content/disclaimer.html')
+        .then(function(r) { return r.ok ? r.text() : Promise.reject(); })
+        .then(function(html) {
+          el.innerHTML = html;
+        })
+        .catch(function() {
+          el.innerHTML = '<p class="disclaimer-loading">Paste your disclaimer in <strong>content/disclaimer.html</strong> (see content/README.txt). Run the site with <code>npx serve -l 3000</code> so it loads.</p>';
+        });
     })();
   </script>
 </body>

@@ -5,7 +5,7 @@ Black background, white text, gold accents. Run locally and test as a normal use
 ## 1. Add your logo
 
 Put your logo image in the **`img`** folder and name it **`logo.png`** (or edit `index.html`, `contact.html`, `resources.html`, and `disclaimer.html` and change `img/logo.png` to your filename, e.g. `img/logo.svg`).  
-If the image is missing, the header shows a “TTC” fallback.
+If the image is missing, the header shows only the text "The Trading Circle" (no yellow box); previously the "TTC" box was shown “TTC” fallback.
 
 ## 2. Set your links and contact
 
@@ -13,9 +13,15 @@ Edit **`config.js`** in the project root:
 
 - **discordInviteUrl** — Your Discord invite (e.g. `https://discord.gg/xxxxx`).
 - **contactEmail** — Email used for the contact form and “email us” link.
-- **activeTradersCount**, **winRatePercent**, **cumulativeGainPercent** — Numbers shown on the homepage (“12 active traders”, “over 90% win rate”, “over 10,000% cumulative”). Change these anytime; no other code edits needed.
+- **activeTradersCount** — Shown on the homepage (“X active traders”).
+- **winRatePercent** — Shown on the Track Record card and in the Track Record panel (e.g. 90 or 92.01).
+- **allTimeGainPercent** — Shown only in the Track Record panel when you click the card (live). Change these anytime; no other code edits needed.
 
-## 3. Run locally (CMD)
+## 3. Your content (no Google Docs)
+
+Paste your disclaimer and resource text in the **`content`** folder so the site shows it on the page (no links to external docs). See **`content/README.txt`** for where to paste what. Run with `npx serve` so those files load.
+
+## 4. Run locally (CMD)
 
 In a terminal, from this folder:
 
@@ -33,11 +39,10 @@ python -m http.server 3000
 
 Then open **http://localhost:3000** in your browser. You’re viewing as a normal user; there is no dev-only or edit UI.
 
-## Pages
+## 5. Pages
 
-- **Home** — Hero, “Join Discord”, four cards that slide up on scroll (Real-Time Trades, Educating Community, Active Traders, Track Record), Resources link, Disclaimer link.
-- **Contact** — Form that opens your email client (mailto) with the message; plus direct email link.
-- **Resources** — List of your resource links (Stock/Options/Futures/Forex/Crypto terms, Trading Basics, Taxes, Psychology, etc.); opens in new tabs.
-- **Disclaimer** — Full disclaimer and terms (on-site). Your Google Doc disclaimer is at: https://docs.google.com/document/d/1EL6nFwdvNx_Zg0hUNZlX5Wkln1GWEaATa5ekhbsWE9A/edit — this page mirrors that style; you can replace the text here with a copy from the doc if you prefer.
+- **Home** — Hero, “Join Discord”, four cards that slide up on scroll (Real-Time Trades, Educating Community, Active Traders, Track Record). Track Record card shows only win rate %; full stats (win rate + all-time gain) in the panel when you click. Disclaimer link.
+- **Contact** — Form that opens your email client (mailto) using **contactEmail** from config.
+- **Disclaimer** — Loaded from **content/disclaimer.html**. Paste your full disclaimer there (word for word). See **content/README.txt**.
 
-All “Join Discord” buttons use the URL from `config.js`. Footer links go to Resources and Disclaimer. No one can edit the site from the browser; only you by changing files and config.
+All “Join Discord” buttons use the URL from `config.js`. Run with **npx serve -l 3000** so content loads from the `content/` folder. No one can edit the site from the browser; only you by changing files. See **SETUP_AND_STATE.md** for hosting, auto-update, Discord/contact, and category→analyst setup.

@@ -9,8 +9,8 @@
 <body>
   <header class="header">
     <a href="index.html" class="logo-wrap">
-      <img src="img/logo.png" alt="The Trading Circle" class="logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
-      <span class="logo-fallback">TTC</span>
+      <img src="img/logo.png" alt="The Trading Circle" class="logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='none'; this.nextElementSibling.nextElementSibling.style.display='inline';" />
+      <span class="logo-fallback" aria-hidden="true">TTC</span>
       <span class="logo-text">The Trading Circle</span>
     </a>
     <nav class="nav">
@@ -30,33 +30,27 @@
     <section class="features" id="features">
       <h2 class="features-title">Why The Trading Circle?</h2>
       <div class="cards">
-        <article class="card card-1">
-          <div class="card-icon">📈</div>
+        <article class="card card-1" data-panel="realtime" role="button" tabindex="0">
+          <div class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 17v-4m6 4v-8m6 8V9m6 8v-6"/></svg></div>
           <h3>Real-Time Trades</h3>
-          <p>Live trade alerts and discussion during market hours. Analysts share entries, exits, and reasoning so you can learn and follow.</p>
+          <p>Live trade alerts and discussion during market hours. Analysts share entry and exit ideas so you can learn and follow along.</p>
         </article>
-        <article class="card card-2">
-          <div class="card-icon">📚</div>
+        <article class="card card-2" data-panel="educating" role="button" tabindex="0">
+          <div class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h6"/></svg></div>
           <h3>Educating Community</h3>
           <p>We focus on teaching. Resources, terminology, and daily discussion so you build your own edge instead of just following alerts.</p>
         </article>
-        <article class="card card-3">
-          <div class="card-icon">👥</div>
+        <article class="card card-3" data-panel="traders" role="button" tabindex="0">
+          <div class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
           <h3>Active Traders</h3>
-          <p>We have <strong id="stat-traders">—</strong> active traders in the server. Real people, real trades, real accountability.</p>
+          <p>We have <strong id="stat-traders">—</strong> active traders in the server who cover options, futures, stocks, and crypto.</p>
         </article>
-        <article class="card card-4">
-          <div class="card-icon">✓</div>
+        <article class="card card-4" data-panel="track" role="button" tabindex="0">
+          <div class="card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M5 13l4 4L19 7"/></svg></div>
           <h3>Track Record</h3>
-          <p>Our analysts have maintained over <strong id="stat-wr">—</strong>% win rate with over <strong id="stat-cumul">—</strong>% cumulative gain this year. Thresholds are updated regularly.</p>
+          <p>Our analysts have been in the market for years, which has led to this server maintaining a <strong id="stat-wr">—</strong>% all-time win rate.</p>
         </article>
       </div>
-    </section>
-
-    <section class="resources-section">
-      <h2 class="features-title">Resources</h2>
-      <p class="resources-intro">One-stop links for terminology, basics, and psychology. Open in new tabs and use anytime.</p>
-      <a href="resources.html" class="btn-secondary">View All Resources</a>
     </section>
 
     <section class="disclaimer-section">
@@ -66,24 +60,34 @@
     </section>
   </main>
 
+  <div class="panel-overlay" id="panel-overlay" aria-hidden="true">
+    <button type="button" class="panel-close" id="panel-close" aria-label="Close">← Back</button>
+    <div class="panel-inner" id="panel-inner"></div>
+  </div>
+
   <footer class="footer">
-    <a href="resources.html">Resources</a>
     <a href="disclaimer.html">Disclaimer</a>
     <span>© <span id="year"></span> The Trading Circle</span>
   </footer>
 
   <script src="config.js"></script>
   <script src="script.js"></script>
+  <script src="panels.js"></script>
   <script>
     (function() {
-      var c = window.TTC_CONFIG || {};
-      document.getElementById('stat-traders').textContent = c.activeTradersCount ?? '12';
-      document.getElementById('stat-wr').textContent = c.winRatePercent ?? '90';
-      document.getElementById('stat-cumul').textContent = (c.cumulativeGainPercent ?? 10000).toLocaleString();
-      var url = c.discordInviteUrl || '#';
-      document.getElementById('join-discord-btn').href = url;
-      document.getElementById('join-discord-hero').href = url;
-      document.getElementById('year').textContent = new Date().getFullYear();
+      function apply() {
+        var c = window.TTC_CONFIG || {};
+        document.getElementById('stat-traders').textContent = c.activeTradersCount ?? '12';
+        document.getElementById('stat-wr').textContent = c.winRatePercent ?? '90';
+        var url = c.discordInviteUrl || '#';
+        document.getElementById('join-discord-btn').href = url;
+        document.getElementById('join-discord-hero').href = url;
+        document.getElementById('year').textContent = new Date().getFullYear();
+      }
+      apply();
+      fetch('/api/config.json').then(function(r) { return r.ok ? r.json() : null; }).then(function(c) {
+        if (c) { window.TTC_CONFIG = c; apply(); }
+      }).catch(function() {});
     })();
   </script>
 </body>
