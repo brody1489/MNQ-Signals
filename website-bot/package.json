@@ -1,15 +1,12 @@
 {
   "name": "the-trading-circle-website-bot",
   "version": "1.0.0",
-  "description": "Contact form → DM you; 8:30 PM job updates config/traders from Discord.",
+  "description": "Contact form → DM you; daily job updates config/traders; monthly job updates featured + last month highlights.",
   "main": "index.js",
-  "scripts": {
-    "start": "node index.js"
-  },
-  "engines": {
-    "node": ">=18"
-  },
+  "scripts": { "start": "node index.js" },
+  "engines": { "node": ">=18" },
   "dependencies": {
+    "date-fns": "^3.6.0",
     "discord.js": "^14.14.1",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",

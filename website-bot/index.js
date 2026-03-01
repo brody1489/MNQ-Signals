@@ -7,6 +7,7 @@ const fs = require('fs');
 const cron = require('node-cron');
 const { Client, GatewayIntentBits } = require('discord.js');
 const { runJob } = require('./job.js');
+const { runMonthlyUpdate } = require('./monthly.js');
 
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 const DATA_DIR = path.resolve(process.env.DATA_DIR || './data');
@@ -15,7 +16,7 @@ const CONTACT_DM_USER_ID = process.env.CONTACT_DM_USER_ID;
 const GUILD_ID = process.env.GUILD_ID;
 const RECAP_CHANNEL_ID = process.env.RECAP_CHANNEL_ID;
 const CRON_DAILY = process.env.CRON_DAILY || '30 20 * * *';
-const TZ = process.env.TZ || 'UTC';
+const TZ = process.env.TZ || 'America/New_York';
 
 const app = express();
 app.use(express.json());
@@ -99,16 +100,30 @@ client.once('ready', () => {
     console.log('[website-bot] Server on port', PORT);
   });
 
-  const runDaily = () => runJob(client, {
-    guildId: GUILD_ID,
-    recapChannelId: RECAP_CHANNEL_ID,
-    dataDir: DATA_DIR,
-    analystRoleName: process.env.ANALYST_ROLE_NAME || 'analyst',
-  }).catch(e => console.error('[job]', e));
+  const runDaily = async () => {
+    try {
+      await runJob(client, {
+        guildId: GUILD_ID,
+        recapChannelId: RECAP_CHANNEL_ID,
+        dataDir: DATA_DIR,
+        analystRoleName: process.env.ANALYST_ROLE_NAME || 'analyst',
+      });
+    } catch (e) {
+      console.error('[job]', e);
+    }
+    try {
+      await runMonthlyUpdate(client, {
+        recapChannelId: RECAP_CHANNEL_ID,
+        dataDir: DATA_DIR,
+      });
+    } catch (e) {
+      console.error('[monthly]', e);
+    }
+  };
 
   runDaily();
   cron.schedule(CRON_DAILY, runDaily, { timezone: TZ });
-  console.log('[website-bot] Daily job scheduled:', CRON_DAILY, 'timezone:', TZ);
+  console.log('[website-bot] Daily job scheduled:', CRON_DAILY, 'timezone:', TZ, '(set TZ for correct last-month rollover, e.g. America/New_York)');
 });
 
 client.login(process.env.DISCORD_BOT_TOKEN).catch(e => {

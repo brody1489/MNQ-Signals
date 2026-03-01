@@ -1,5 +1,12 @@
 'use strict';
 
+/**
+ * LEGACY one-time backfill for February 2025 only.
+ * For 2026 and going forward, the built-in monthly job (monthly.js) runs automatically
+ * and always uses "last month" from the current date (e.g. Feb 2026 when in March 2026).
+ * You do not need to run this script for February 2026.
+ */
+
 require('dotenv').config();
 const path = require('path');
 const fs = require('fs');
