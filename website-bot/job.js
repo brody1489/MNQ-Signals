@@ -85,26 +85,57 @@ async function runJob(client, options) {
   for (const arr of Object.values(tradersByCategory)) flatTraders.push(...arr);
   const activeTradersCount = flatTraders.length;
 
-  if (recapChannelId && totals.lastRecapDate !== today) {
+  if (recapChannelId) {
     try {
       const channel = await client.channels.fetch(recapChannelId);
-      const messages = await channel.messages.fetch({ limit: 5 });
-      const last = messages.first();
-      if (last && last.content) {
-        const wrMatch = last.content.match(/Alert\s+Winrate:\s*(\d+)\/(\d+)/i) || last.content.match(/(\d+)\/(\d+)\s*(\d+)?\s*%/);
-        const gainMatch = last.content.match(/Total\s+Gain:\s*\+?([\d,.]+)\s*%/i) || last.content.match(/\+?([\d,.]+)\s*%\s*🚀/);
+      // Fetch enough messages to find the latest recap even if
+      // non-recap messages were posted after it
+      const messages = await channel.messages.fetch({ limit: 20 });
+
+      // Find the most recent message that is actually a daily recap
+      const recapMsg = messages.find(m =>
+        m.content && (
+          /Alert\s+Winrate:/i.test(m.content) ||
+          /DAILY\s+RECAP/i.test(m.content)
+        )
+      );
+
+      if (!recapMsg) {
+        console.log('[job] No recap message found in last 20 messages — skipping stats update');
+      } else if (recapMsg.id === totals.lastRecapMsgId) {
+        // Already parsed this exact message — skip to avoid double-counting
+        console.log('[job] Recap already parsed (msg', recapMsg.id, ') — no new data');
+      } else {
+        // New recap found — parse it
+        const wrMatch    = recapMsg.content.match(/Alert\s+Winrate:\s*(\d+)\/(\d+)/i);
+        const gainMatch  = recapMsg.content.match(/Total\s+Gain:\s*\+?([\d,.]+)\s*%/i);
+
         if (wrMatch) {
-          const wins = parseInt(wrMatch[1], 10);
-          const total = parseInt(wrMatch[2], 10);
-          const losses = total - wins;
-          totals.wins += wins;
-          totals.losses += losses;
+          const wins   = parseInt(wrMatch[1], 10);
+          const total  = parseInt(wrMatch[2], 10);
+          totals.wins   += wins;
+          totals.losses += (total - wins);
+        } else {
+          console.warn('[job] Win-rate line not found in recap msg', recapMsg.id);
         }
+
         if (gainMatch) {
-          const gain = parseFloat(String(gainMatch[1]).replace(/,/g, ''), 10);
+          const gain = parseFloat(String(gainMatch[1]).replace(/,/g, ''));
           if (!isNaN(gain)) totals.totalGainPercent += gain;
+        } else {
+          console.warn('[job] Total-gain line not found in recap msg', recapMsg.id);
         }
-        totals.lastRecapDate = today;
+
+        // Mark this message as processed — never re-parse it
+        totals.lastRecapMsgId  = recapMsg.id;
+        totals.lastRecapDate   = today;   // kept for human readability in totals.json
+
+        console.log(
+          '[job] Parsed new recap', recapMsg.id,
+          '— cumulative wins:', totals.wins,
+          'losses:', totals.losses,
+          'gain:', totals.totalGainPercent.toFixed(2) + '%'
+        );
       }
     } catch (e) {
       console.error('[job] Recap read failed:', e.message);
