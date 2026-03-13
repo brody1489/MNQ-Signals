@@ -17,16 +17,40 @@ function levenshtein(a, b) {
   return prev[n];
 }
 
+function normalizeHandle(raw) {
+  // Normalize common impersonation padding:
+  // - lowercase
+  // - remove punctuation/whitespace (., _, -, etc.)
+  // - keep only a-z0-9
+  // - collapse to max 32 for sanity
+  return String(raw || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '')
+    .slice(0, 32);
+}
+
 function getHandle(user) {
+  // username is the most stable identifier; globalName is display-only and easy to spoof
   return user?.username ?? '';
 }
 
 function checkSimilarity(memberHandle, protectedList, threshold) {
-  const handle = (memberHandle || '').trim();
+  const handleRaw = (memberHandle || '').trim();
+  const handle = normalizeHandle(handleRaw);
   const th = Math.max(0, parseInt(threshold, 10) || 1);
   const len = handle.length;
   for (const { handle: protectedHandle, userId: protectedUserId } of protectedList) {
-    const p = (protectedHandle || '').trim();
+    const pRaw = (protectedHandle || '').trim();
+    const p = normalizeHandle(pRaw);
+    if (!p || !handle) continue;
+
+    // Strong match: exact prefix + only digits added (e.g. brody80085)
+    if (p.length >= 3 && handle.startsWith(p) && /^\d+$/.test(handle.slice(p.length))) {
+      return { match: true, protectedHandle: pRaw, protectedUserId, distance: 0 };
+    }
+
+    // Standard edit-distance match on normalized handles
     if (Math.abs(p.length - len) > th) continue;
     const distance = levenshtein(handle, p);
     if (distance <= th) return { match: true, protectedHandle: p, protectedUserId, distance };
@@ -34,4 +58,4 @@ function checkSimilarity(memberHandle, protectedList, threshold) {
   return { match: false };
 }
 
-module.exports = { levenshtein, getHandle, checkSimilarity };
+module.exports = { levenshtein, normalizeHandle, getHandle, checkSimilarity };
