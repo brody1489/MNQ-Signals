@@ -5,9 +5,15 @@ const baseline = require('./src/baseline');
 const { getHandle, checkSimilarity } = require('./src/detect');
 const { banAndLog } = require('./src/actions');
 const { registerCommands, handleInteraction } = require('./src/commands');
+const { runMessageMod } = require('./src/messageMod');
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ],
   partials: [Partials.GuildMember],
 });
 
@@ -29,8 +35,9 @@ async function runDetection(member) {
   if (shouldSkipMember(member)) return;
   if (!enforce()) return;
   const handle = getHandle(member.user);
+  const avatarUrl = member.user?.displayAvatarURL?.({ size: 128 })?.replace(/\?.*$/, '') ?? '';
   const protectedHandles = baseline.getProtectedHandles();
-  const result = checkSimilarity(handle, protectedHandles, threshold());
+  const result = checkSimilarity(handle, avatarUrl, protectedHandles, threshold());
   if (!result.match) return;
   await banAndLog(client, member, result);
 }
@@ -73,6 +80,10 @@ client.on('userUpdate', async (oldUser, newUser) => {
   await runDetection(member);
 });
 client.on('interactionCreate', (interaction) => handleInteraction(client, interaction));
+client.on('messageCreate', async (msg) => {
+  if (msg.guild?.id !== config.GUILD_ID) return;
+  runMessageMod(client, msg).catch((e) => console.error('[messageMod]', e.message));
+});
 
 function start() {
   client.login(config.DISCORD_BOT_TOKEN).catch((e) => {

@@ -31,7 +31,8 @@ async function refresh(client) {
     if (hasProtectedRole || manual.has(member.id)) {
       newProtectedIds.add(member.id);
       const handle = getHandle(member.user);
-      if (handle) newHandles.push({ userId: member.id, handle });
+      const avatarUrl = member.user?.displayAvatarURL?.({ size: 128 })?.replace(/\?.*$/, '') ?? '';
+      if (handle) newHandles.push({ userId: member.id, handle, avatarUrl });
     }
   }
   protectedUserIds = newProtectedIds;

@@ -35,27 +35,43 @@ function getHandle(user) {
   return user?.username ?? '';
 }
 
-function checkSimilarity(memberHandle, protectedList, threshold) {
+// When avatar matches a protected user, allow up to this many character differences and still ban
+const AVATAR_MATCH_MAX_DISTANCE = 4;
+
+function checkSimilarity(memberHandle, memberAvatarUrl, protectedList, threshold) {
   const handleRaw = (memberHandle || '').trim();
   const handle = normalizeHandle(handleRaw);
-  const th = Math.max(0, parseInt(threshold, 10) || 1);
+  const th = Math.max(0, parseInt(threshold, 10) || 2);
   const len = handle.length;
-  for (const { handle: protectedHandle, userId: protectedUserId } of protectedList) {
+  for (const entry of protectedList) {
+    const { handle: protectedHandle, userId: protectedUserId, avatarUrl: protectedAvatarUrl } = entry;
     const pRaw = (protectedHandle || '').trim();
     const p = normalizeHandle(pRaw);
     if (!p || !handle) continue;
 
-    // Strong match: exact prefix + only digits added (e.g. brody80085)
+    const avatarMatch = Boolean(
+      memberAvatarUrl &&
+      protectedAvatarUrl &&
+      memberAvatarUrl.replace(/\?.*$/, '') === protectedAvatarUrl.replace(/\?.*$/, '')
+    );
+
+    // Strong match: exact prefix + only digits added (e.g. brody80085, brody_80056 -> brody80056)
     if (p.length >= 3 && handle.startsWith(p) && /^\d+$/.test(handle.slice(p.length))) {
       return { match: true, protectedHandle: pRaw, protectedUserId, distance: 0 };
     }
 
-    // Standard edit-distance match on normalized handles
-    if (Math.abs(p.length - len) > th) continue;
     const distance = levenshtein(handle, p);
-    if (distance <= th) return { match: true, protectedHandle: p, protectedUserId, distance };
+
+    // Same PFP + username within a few chars = impersonation (e.g. 3–4 chars off)
+    if (avatarMatch && distance <= AVATAR_MATCH_MAX_DISTANCE) {
+      return { match: true, protectedHandle: pRaw, protectedUserId, distance };
+    }
+
+    // Standard edit-distance match on normalized handles (threshold from settings, default 2)
+    if (Math.abs(p.length - len) > th) continue;
+    if (distance <= th) return { match: true, protectedHandle: pRaw, protectedUserId, distance };
   }
   return { match: false };
 }
 
-module.exports = { levenshtein, normalizeHandle, getHandle, checkSimilarity };
+module.exports = { levenshtein, normalizeHandle, getHandle, checkSimilarity, AVATAR_MATCH_MAX_DISTANCE };
