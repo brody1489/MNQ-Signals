@@ -216,6 +216,11 @@ app.delete('/api/campaigns/:id', requireAdmin, (req, res) => {
   }
 });
 
+/** Main site nav uses /affiliate.html — same page as affiliates.html (tabs + Become an affiliate) */
+app.get('/affiliate.html', (req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, 'affiliates.html'));
+});
+
 app.use(express.static(PUBLIC_DIR));
 
 app.listen(PORT, () => {
