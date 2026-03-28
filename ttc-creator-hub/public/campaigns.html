@@ -5,16 +5,33 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Current campaigns | The Trading Circle</title>
+  <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/css/theme.css" />
 </head>
 <body>
-  <header class="site-header">
-    <a class="site-logo" href="/">The Trading Circle</a>
-    <nav class="site-nav">
-      <a href="/index.html">Home</a>
-      <a href="/affiliates.html">Affiliates</a>
-      <a href="/campaigns.html" aria-current="page">Campaigns</a>
+  <header class="header">
+    <a href="/" class="logo-wrap">
+      <img src="/img/logo.png" alt="The Trading Circle" class="logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='none'; this.nextElementSibling.nextElementSibling.style.display='inline';" />
+      <span class="logo-fallback" aria-hidden="true">TTC</span>
+      <span class="logo-text">The Trading Circle</span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="/">Home</a>
+      <a href="/affiliate.html">Affiliate</a>
+      <a href="/contact.html">Contact</a>
+      <a href="#" class="btn-cta" id="join-discord-btn" target="_blank" rel="noopener noreferrer">Join Discord</a>
     </nav>
+    <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false">
+      <span class="nav-toggle-line"></span>
+      <span class="nav-toggle-line"></span>
+      <span class="nav-toggle-line"></span>
+    </button>
+    <div class="nav-mobile" id="nav-mobile" aria-hidden="true">
+      <a href="/">Home</a>
+      <a href="/affiliate.html">Affiliate</a>
+      <a href="/contact.html">Contact</a>
+      <a href="#" class="btn-cta" id="join-discord-btn-mob" target="_blank" rel="noopener noreferrer">Join Discord</a>
+    </div>
   </header>
 
   <main class="container container-wide">
@@ -27,6 +44,7 @@
   </main>
 
   <footer class="site-footer">The Trading Circle · Creator hub</footer>
+  <script src="/script.js"></script>
   <script src="/js/common.js"></script>
   <script>
     function cardHtml(c, now) {
@@ -106,6 +124,22 @@
       return d.innerHTML;
     }
     render();
+  </script>
+  <script>
+    fetch('/api/config.json')
+      .then(function (r) {
+        return r.ok ? r.json() : null;
+      })
+      .then(function (c) {
+        if (c && c.discordInviteUrl) {
+          var u = c.discordInviteUrl;
+          ['join-discord-btn', 'join-discord-btn-mob'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) el.href = u;
+          });
+        }
+      })
+      .catch(function () {});
   </script>
 </body>
 </html>
