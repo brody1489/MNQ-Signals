@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>The Trading Circle | Trading Community</title>
+  <link rel="stylesheet" href="/css/site-styles.css" />
+  <style>
+    .proposed-banner {
+      background: rgba(201, 162, 39, 0.12);
+      border-bottom: 1px solid rgba(201, 162, 39, 0.35);
+      padding: 0.65rem 1.5rem;
+      font-size: 0.88rem;
+      color: var(--gold);
+      text-align: center;
+    }
+    .proposed-banner a { color: var(--gold); }
+  </style>
+</head>
+<body>
+  <div class="proposed-banner">
+    Proposed preview — stays on <strong>localhost</strong>. Campaigns are only linked from <a href="/proposed-affiliates.html">Affiliate</a> → Become an affiliate → View current campaigns.
+  </div>
+  <header class="header">
+    <a href="/proposed-home.html" class="logo-wrap">
+      <img src="/img/logo.png" alt="The Trading Circle" class="logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='none'; this.nextElementSibling.nextElementSibling.style.display='inline';" />
+      <span class="logo-fallback" aria-hidden="true">TTC</span>
+      <span class="logo-text">The Trading Circle</span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="/proposed-home.html" aria-current="page">Home</a>
+      <a href="/proposed-affiliates.html">Affiliate</a>
+      <a href="https://thetradingcircle.org/contact.html">Contact</a>
+      <a href="#" class="btn-cta" id="join-discord-btn" target="_blank" rel="noopener noreferrer">Join Discord</a>
+    </nav>
+    <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false">
+      <span class="nav-toggle-line"></span>
+      <span class="nav-toggle-line"></span>
+      <span class="nav-toggle-line"></span>
+    </button>
+    <div class="nav-mobile" id="nav-mobile" aria-hidden="true">
+      <a href="/proposed-home.html">Home</a>
+      <a href="/proposed-affiliates.html">Affiliate</a>
+      <a href="https://thetradingcircle.org/contact.html">Contact</a>
+      <a href="#" class="btn-cta" id="join-discord-btn-mob" target="_blank" rel="noopener noreferrer">Join Discord</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1 class="hero-title">Trading Community For Everyone</h1>
+      <p class="hero-sub">Learn to trade stocks, options, futures &amp; crypto with a real community.</p>
+      <a href="#" class="btn-cta btn-hero" id="join-discord-hero" target="_blank" rel="noopener">Join Discord</a>
+    </section>
+
+    <section class="disclaimer-section">
+      <h2 class="features-title">Disclaimer</h2>
+      <p class="disclaimer-teaser">This is not investment advice. By joining our server you agree to our full disclaimer.</p>
+      <a href="https://thetradingcircle.org/disclaimer.html" class="link-gold">Read full disclaimer →</a>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <a href="https://thetradingcircle.org/disclaimer.html">Disclaimer</a>
+    <span>© <span id="year"></span> The Trading Circle</span>
+  </footer>
+
+  <script src="/js/site-nav.js"></script>
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+    fetch('https://thetradingcircle.org/api/config.json')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (c) {
+        if (c && c.discordInviteUrl) {
+          var u = c.discordInviteUrl;
+          var b = document.getElementById('join-discord-btn');
+          if (b) b.href = u;
+          var m = document.getElementById('join-discord-btn-mob');
+          if (m) m.href = u;
+          var h = document.getElementById('join-discord-hero');
+          if (h) h.href = u;
+        }
+      })
+      .catch(function () {});
+  </script>
+</body>
+</html>

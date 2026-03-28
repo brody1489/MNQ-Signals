@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Current campaigns | The Trading Circle</title>
+  <link rel="stylesheet" href="/css/theme.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a class="site-logo" href="/">The Trading Circle</a>
+    <nav class="site-nav">
+      <a href="/index.html">Home</a>
+      <a href="/affiliates.html">Affiliates</a>
+      <a href="/campaigns.html" aria-current="page">Campaigns</a>
+    </nav>
+  </header>
+
+  <main class="container container-wide">
+    <h1>Current campaigns</h1>
+    <p class="muted" style="margin-bottom: 1.5rem">Budget and paid-out values update when campaigns are edited in the admin dashboard.</p>
+    <div id="campaign-root"></div>
+    <h2 style="margin-top: 3rem">Past campaigns</h2>
+    <p class="muted" style="margin-bottom: 1rem">Completed, expired, or fully paid out.</p>
+    <div id="campaign-past"></div>
+  </main>
+
+  <footer class="site-footer">The Trading Circle · Creator hub</footer>
+  <script src="/js/common.js"></script>
+  <script>
+    function cardHtml(c, now) {
+      var pct = TTCprogressPct(c);
+      var st = TTCcampaignStatusDisplay(c, now);
+      var exp = c.expiration ? new Date(c.expiration).toLocaleString() : '—';
+      return (
+        '<article class="campaign-card">' +
+        '<span class="badge ' +
+        st.cls +
+        '">' +
+        st.label +
+        '</span>' +
+        '<h3>' +
+        escapeHtml(c.title) +
+        '</h3>' +
+        '<p class="muted" style="font-size:0.9rem">' +
+        escapeHtml(c.short_description || '') +
+        '</p>' +
+        '<div class="progress-wrap">' +
+        '<div class="progress-label"><span>Paid out</span><span>' +
+        TTCformatMoney(c.paid_out) +
+        ' / ' +
+        TTCformatMoney(c.budget) +
+        '</span></div>' +
+        '<div class="progress-bar"><div class="progress-fill" style="width:' +
+        pct +
+        '%"></div></div>' +
+        '</div>' +
+        '<p class="muted" style="font-size:0.85rem">Expires: ' +
+        escapeHtml(exp) +
+        '</p>' +
+        '<a class="btn btn-primary" style="width:100%;margin-top:0.5rem" href="/campaign.html?id=' +
+        encodeURIComponent(c.id) +
+        '">View details</a>' +
+        '</article>'
+      );
+    }
+
+    function render() {
+      var root = document.getElementById('campaign-root');
+      var pastRoot = document.getElementById('campaign-past');
+      TTCHubAPI.getCampaigns()
+        .then(function (data) {
+          var all = data.campaigns || [];
+          var now = new Date();
+          var visible = all.filter(function (c) {
+            var st = TTCcampaignStatusDisplay(c, now);
+            if (st.label === 'Ended' || st.label === 'Completed' || st.label === 'Budget reached') return false;
+            if (c.status === 'completed') return false;
+            return true;
+          });
+          if (visible.length === 0) {
+            root.innerHTML =
+              '<div class="empty-state"><p><strong>No active campaigns available at this time.</strong></p><p style="margin-top:0.75rem">Check back later or contact the team if you were invited to a specific campaign.</p></div>';
+          } else {
+            root.innerHTML = '<div class="card-grid">' + visible.map(function (c) { return cardHtml(c, now); }).join('') + '</div>';
+          }
+          var past = all.filter(function (c) {
+            var st = TTCcampaignStatusDisplay(c, now);
+            return st.label === 'Ended' || st.label === 'Completed' || st.label === 'Budget reached' || c.status === 'completed';
+          });
+          if (past.length === 0) {
+            pastRoot.innerHTML = '<p class="muted">No past campaigns to show.</p>';
+          } else {
+            pastRoot.innerHTML = '<div class="card-grid">' + past.map(function (c) { return cardHtml(c, now); }).join('') + '</div>';
+          }
+        })
+        .catch(function () {
+          root.innerHTML = '<p class="muted">Could not load campaigns. Is the server running?</p>';
+          pastRoot.innerHTML = '';
+        });
+    }
+    function escapeHtml(s) {
+      var d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+    render();
+  </script>
+</body>
+</html>

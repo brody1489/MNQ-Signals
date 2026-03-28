@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Affiliates | The Trading Circle</title>
+  <link rel="stylesheet" href="/css/theme.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a class="site-logo" href="/">The Trading Circle</a>
+    <nav class="site-nav">
+      <a href="/index.html">Home</a>
+      <a href="/affiliates.html" aria-current="page">Affiliates</a>
+      <a href="/campaigns.html">Campaigns</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="seg-toggle" role="tablist" aria-label="Section">
+      <button type="button" class="is-active" id="tab-partners" role="tab" aria-selected="true" data-panel="panel-partners">Our partners</button>
+      <button type="button" id="tab-become" role="tab" aria-selected="false" data-panel="panel-become">Become an affiliate</button>
+    </div>
+
+    <section id="panel-partners" class="panel is-active" role="tabpanel" aria-labelledby="tab-partners">
+      <h1>Affiliates</h1>
+      <p class="muted" style="margin-bottom: 1.5rem">
+        We strive to give you the best access and deals in the market — including partner pricing you won’t always find elsewhere.
+      </p>
+      <div class="divider"></div>
+
+      <section style="margin-bottom: 2rem">
+        <h2 style="margin-top: 0"><a href="https://strixoptionsfunding.com/?ref=ttc" target="_blank" rel="noopener noreferrer">Strix ↗</a></h2>
+        <p class="muted">One of the only options funded accounts available — built for traders scaling options with real capital.</p>
+        <p>Click <a href="https://strixoptionsfunding.com/?ref=ttc" target="_blank" rel="noopener noreferrer">here</a> and use code <strong>TTC</strong> for 25% off every month.</p>
+      </section>
+      <div class="divider"></div>
+      <section style="margin-bottom: 2rem">
+        <h2 style="margin-top: 0"><a href="https://www.tradingview.com/?aff_id=164868" target="_blank" rel="noopener noreferrer">TradingView ↗</a></h2>
+        <p class="muted">Charting and technical analysis across stocks, options, futures, and crypto.</p>
+        <p>Click <a href="https://www.tradingview.com/?aff_id=164868" target="_blank" rel="noopener noreferrer">here</a> to get $15 toward your first plan.</p>
+      </section>
+      <div class="divider"></div>
+      <section>
+        <h2 style="margin-top: 0"><a href="https://bookmap.com/members/aff/go/smcdgsesieafoo" target="_blank" rel="noopener noreferrer">Bookmap ↗</a></h2>
+        <p class="muted">Order flow, heatmaps, and depth for serious tape readers.</p>
+        <p>Click <a href="https://bookmap.com/members/aff/go/smcdgsesieafoo" target="_blank" rel="noopener noreferrer">here</a> and use code <strong>BM20</strong> for 20% off your first month.</p>
+      </section>
+    </section>
+
+    <section id="panel-become" class="panel" role="tabpanel" aria-labelledby="tab-become" hidden>
+      <h1 id="become">Become a creator partner</h1>
+      <p class="lead">
+        We invite creators to help grow The Trading Circle with original content on TikTok, YouTube, Shorts, or Instagram — with payouts tied to real performance and verified growth.
+      </p>
+      <h2>What you do</h2>
+      <ul class="muted" style="padding-left: 1.25rem">
+        <li>Post authentic content that fits your style and our guidelines.</li>
+        <li>Point people who want to learn more toward The Trading Circle Discord — when a campaign is active, joins can be tracked through your link.</li>
+        <li>When a campaign is live, follow the payout structure on the campaign page.</li>
+      </ul>
+      <h2>What you can earn</h2>
+      <p class="muted">We offer pay tied to views and to engagement — for example, verified Discord joins through your creator link. Use View current campaigns below for live numbers.</p>
+      <h2>Requirements</h2>
+      <ul class="muted" style="padding-left: 1.25rem">
+        <li>Original content; disclosure as required by law and platform rules.</li>
+        <li>No harassment, slurs, or deceptive claims.</li>
+        <li>You must read and accept the Creator Campaign Participation Agreement linked in the application.</li>
+      </ul>
+      <div class="stack-btns">
+        <a class="btn btn-primary" id="apply-link" href="https://forms.gle/yHS74u4cedwerLe58" target="_blank" rel="noopener noreferrer">Apply now</a>
+        <a class="btn btn-secondary" href="/campaigns.html">View current campaigns</a>
+      </div>
+      <p class="muted" style="margin-top: 1.5rem">Applying does not guarantee acceptance. We review every submission.</p>
+    </section>
+  </main>
+
+  <footer class="site-footer">The Trading Circle · Creator hub</footer>
+  <script src="/js/common.js"></script>
+  <script src="/js/affiliates-tabs.js"></script>
+  <script>
+    fetch('/api/campaigns')
+      .then((r) => r.json())
+      .then(function (data) {
+        var u = (data.meta && data.meta.apply_form_url) || 'https://forms.gle/yHS74u4cedwerLe58';
+        var a = document.getElementById('apply-link');
+        if (a) a.href = u;
+      })
+      .catch(function () {});
+  </script>
+</body>
+</html>

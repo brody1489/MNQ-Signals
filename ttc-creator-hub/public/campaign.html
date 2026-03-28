@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Campaign | The Trading Circle</title>
+  <link rel="stylesheet" href="/css/theme.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a class="site-logo" href="/">The Trading Circle</a>
+    <nav class="site-nav">
+      <a href="/campaigns.html">← All campaigns</a>
+    </nav>
+  </header>
+
+  <main class="container" id="main"></main>
+  <footer class="site-footer">The Trading Circle · Creator hub</footer>
+  <script src="/js/common.js"></script>
+  <script>
+    var params = new URLSearchParams(location.search);
+    var id = params.get('id');
+    var main = document.getElementById('main');
+
+    function esc(s) {
+      var d = document.createElement('div');
+      d.textContent = s == null ? '' : String(s);
+      return d.innerHTML;
+    }
+
+    if (!id) {
+      main.innerHTML = '<p class="muted">Missing campaign id.</p>';
+    } else {
+      TTCHubAPI.getCampaigns()
+        .then(function (data) {
+          var c = (data.campaigns || []).find(function (x) {
+            return x.id === id;
+          });
+          if (!c) {
+            main.innerHTML = '<p class="muted">Campaign not found.</p>';
+            return;
+          }
+          var now = new Date();
+          var st = TTCcampaignStatusDisplay(c, now);
+          var pct = TTCprogressPct(c);
+          var tiers = (c.join_payout_tiers || [])
+            .map(function (t) {
+              return '<li><strong>' + esc(t.label || '') + '</strong> — ' + esc(String(t.amount != null ? TTCformatMoney(t.amount) : '')) + '</li>';
+            })
+            .join('');
+          main.innerHTML =
+            '<h1>' +
+            esc(c.title) +
+            '</h1>' +
+            '<span class="badge ' +
+            st.cls +
+            '" style="margin-bottom:1rem">' +
+            esc(st.label) +
+            '</span>' +
+            '<div class="progress-wrap" style="margin:1.25rem 0">' +
+            '<div class="progress-label"><span>Progress</span><span>' +
+            TTCformatMoney(c.paid_out) +
+            ' / ' +
+            TTCformatMoney(c.budget) +
+            ' (' +
+            pct +
+            '%)</span></div>' +
+            '<div class="progress-bar"><div class="progress-fill" style="width:' +
+            pct +
+            '%"></div></div></div>' +
+            '<p class="muted">Expires: ' +
+            esc(c.expiration ? new Date(c.expiration).toLocaleString() : '—') +
+            '</p>' +
+            '<div class="divider"></div>' +
+            '<h2>Description</h2><p class="muted">' +
+            esc(c.description || c.short_description || '—') +
+            '</p>' +
+            '<h2>Payment structure</h2><ul class="muted" style="padding-left:1.25rem"><li><strong>Per 1k views:</strong> ' +
+            esc(TTCformatMoney(c.payout_per_1k_views || 0)) +
+            '</li>' +
+            (tiers ? '<li><strong>Join / tier bonuses:</strong><ul style="margin-top:0.35rem">' + tiers + '</ul></li>' : '') +
+            '</ul>' +
+            '<h2>Payout method</h2><p class="muted">' +
+            esc(c.payment_note || '') +
+            '</p>' +
+            '<h2>Rules</h2><p class="muted" style="white-space:pre-wrap">' +
+            esc(c.rules || 'Follow platform guidelines, no bots or artificial engagement. Details in the Creator Agreement.') +
+            '</p>';
+        })
+        .catch(function () {
+          main.innerHTML = '<p class="muted">Could not load campaign.</p>';
+        });
+    }
+  </script>
+</body>
+</html>

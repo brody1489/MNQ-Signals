@@ -1,0 +1,21 @@
+{
+  "name": "ttc-creator-hub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The Trading Circle — creator campaigns (local-first; deploy to thetradingcircle.org)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "free-port": "node scripts/free-port.js",
+    "start-fresh": "node scripts/free-port.js && node server.js",
+    "check-env": "node scripts/check-env.js",
+    "test-login": "node scripts/test-login.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0"
+  }
+}

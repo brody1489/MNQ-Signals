@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Affiliates (proposed) | The Trading Circle</title>
+  <link rel="stylesheet" href="/css/site-styles.css" />
+  <style>
+    .proposed-banner {
+      background: rgba(201, 162, 39, 0.12);
+      border-bottom: 1px solid rgba(201, 162, 39, 0.35);
+      padding: 0.65rem 1.5rem;
+      font-size: 0.88rem;
+      color: var(--gold);
+      text-align: center;
+    }
+    .proposed-banner a { color: var(--gold); }
+    .seg-toggle {
+      display: inline-flex;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 1.25rem 0 1.5rem;
+    }
+    .seg-toggle button {
+      background: transparent;
+      border: none;
+      color: var(--gray);
+      padding: 0.5rem 1.1rem;
+      font: inherit;
+      cursor: pointer;
+    }
+    .seg-toggle button.is-active {
+      background: rgba(201, 162, 39, 0.2);
+      color: var(--gold);
+    }
+    .panel[hidden] { display: none !important; }
+    .hub-links {
+      margin-top: 1.25rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+    }
+    /* Do not use .btn-cta for outline — site-styles uses color: ... !important and hides gold text on transparent bg */
+    .hub-btn {
+      display: inline-block;
+      padding: 0.5rem 1.25rem;
+      border-radius: 6px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+      font-size: 0.95rem;
+      line-height: 1.3;
+      text-align: center;
+    }
+    .hub-btn--primary {
+      background: var(--gold);
+      color: var(--bg);
+    }
+    .hub-btn--primary:hover {
+      background: var(--gold-dim);
+      color: var(--bg);
+    }
+    .hub-btn--outline {
+      background: transparent;
+      color: var(--gold);
+      border: 1px solid var(--gold);
+    }
+    .hub-btn--outline:hover {
+      background: rgba(201, 162, 39, 0.15);
+      color: var(--gold);
+    }
+    /* .page-inner a { color: gold } was making Apply now text gold-on-gold (invisible) */
+    .page-inner .hub-links .hub-btn--primary {
+      color: #000000 !important;
+      text-decoration: none !important;
+    }
+    .page-inner .hub-links .hub-btn--primary:hover {
+      color: #000000 !important;
+    }
+    .page-inner .hub-links .hub-btn--outline {
+      color: var(--gold) !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="proposed-banner">
+    Proposed preview — <a href="/proposed-home.html">Home</a> stays on localhost. Campaigns: Affiliate → Become an affiliate → <strong>View current campaigns</strong> (not in the top bar).
+  </div>
+  <header class="header">
+    <a href="/proposed-home.html" class="logo-wrap">
+      <img src="/img/logo.png" alt="The Trading Circle" class="logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='none'; this.nextElementSibling.nextElementSibling.style.display='inline';" />
+      <span class="logo-fallback" aria-hidden="true">TTC</span>
+      <span class="logo-text">The Trading Circle</span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="/proposed-home.html">Home</a>
+      <a href="/proposed-affiliates.html" aria-current="page">Affiliate</a>
+      <a href="https://thetradingcircle.org/contact.html">Contact</a>
+      <a href="#" class="btn-cta" id="join-discord-btn" target="_blank" rel="noopener noreferrer">Join Discord</a>
+    </nav>
+    <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false">
+      <span class="nav-toggle-line"></span>
+      <span class="nav-toggle-line"></span>
+      <span class="nav-toggle-line"></span>
+    </button>
+    <div class="nav-mobile" id="nav-mobile" aria-hidden="true">
+      <a href="/proposed-home.html">Home</a>
+      <a href="/proposed-affiliates.html">Affiliate</a>
+      <a href="https://thetradingcircle.org/contact.html">Contact</a>
+      <a href="#" class="btn-cta" id="join-discord-btn-mob" target="_blank" rel="noopener noreferrer">Join Discord</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="page-inner affiliate-page">
+      <div class="seg-toggle" role="tablist" aria-label="Affiliate section">
+        <button type="button" class="is-active" id="tab-partners" role="tab" aria-selected="true" data-panel="panel-partners">Our partners</button>
+        <button type="button" id="tab-become" role="tab" aria-selected="false" data-panel="panel-become">Become an affiliate</button>
+      </div>
+
+      <section id="panel-partners" class="panel is-active" role="tabpanel" aria-labelledby="tab-partners">
+        <h1>Affiliates</h1>
+        <p class="affiliate-intro">
+          We strive to provide you guys with the best access to anything you need to succeed in the market, and more importantly the best deals. I have worked hard getting the best deals and benefits for you guys, some significantly better than you can get anywhere else.
+        </p>
+        <div class="affiliate-section-divider" aria-hidden="true"></div>
+
+        <section class="affiliate-card" aria-labelledby="aff-strix">
+          <h2 class="affiliate-card-title" id="aff-strix">
+            <a class="affiliate-title-link" href="https://strixoptionsfunding.com/?ref=ttc" target="_blank" rel="noopener noreferrer" aria-label="Strix (opens in new tab)">
+              <span>Strix</span>
+              <svg class="affiliate-external-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </a>
+          </h2>
+          <p class="affiliate-bio">One of the only options funded accounts available — designed for traders looking to scale options trading with capital.</p>
+          <p class="affiliate-cta">
+            Click <a href="https://strixoptionsfunding.com/?ref=ttc" class="affiliate-here-link" target="_blank" rel="noopener noreferrer">here</a> and use code TTC for 25% off every month!
+          </p>
+        </section>
+
+        <section class="affiliate-card" aria-labelledby="aff-tv">
+          <h2 class="affiliate-card-title" id="aff-tv">
+            <a class="affiliate-title-link" href="https://www.tradingview.com/?aff_id=164868" target="_blank" rel="noopener noreferrer" aria-label="TradingView (opens in new tab)">
+              <span>TradingView</span>
+              <svg class="affiliate-external-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </a>
+          </h2>
+          <p class="affiliate-bio">The most popular charting platform for traders — used for technical analysis, indicators, and market tracking across all assets.</p>
+          <p class="affiliate-cta">
+            Click <a href="https://www.tradingview.com/?aff_id=164868" class="affiliate-here-link" target="_blank" rel="noopener noreferrer">here</a> to get $15 toward your first plan.
+          </p>
+        </section>
+
+        <section class="affiliate-card affiliate-card--last" aria-labelledby="aff-bookmap">
+          <h2 class="affiliate-card-title" id="aff-bookmap">
+            <a class="affiliate-title-link" href="https://bookmap.com/members/aff/go/smcdgsesieafoo" target="_blank" rel="noopener noreferrer" aria-label="Bookmap (opens in new tab)">
+              <span>Bookmap</span>
+              <svg class="affiliate-external-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </a>
+          </h2>
+          <p class="affiliate-bio">Advanced order flow and heatmap software used by professional traders to visualize liquidity, volume, and real-time market activity.</p>
+          <p class="affiliate-cta">
+            Click <a href="https://bookmap.com/members/aff/go/smcdgsesieafoo" class="affiliate-here-link" target="_blank" rel="noopener noreferrer">here</a> and use code BM20 for 20% off your first month.
+          </p>
+        </section>
+      </section>
+
+      <section id="panel-become" class="panel" role="tabpanel" aria-labelledby="tab-become" hidden>
+        <h1 id="become">Become a creator partner</h1>
+        <p class="affiliate-intro" style="margin-bottom: 1rem">
+          We invite creators to help grow The Trading Circle with original content on TikTok, YouTube, Shorts, or Instagram — with payouts tied to real performance and verified growth.
+        </p>
+        <h2 class="affiliate-card-title" style="margin-top: 1.5rem">What you do</h2>
+        <ul class="affiliate-bio" style="padding-left: 1.25rem; margin-bottom: 1rem">
+          <li>Post authentic content that fits your style and our guidelines.</li>
+          <li>Point people who want to learn more toward The Trading Circle Discord — when a campaign is active, joins can be tracked through your link.</li>
+          <li>When a campaign is live, follow the payout structure on the campaign page.</li>
+        </ul>
+        <h2 class="affiliate-card-title">What you can earn</h2>
+        <p class="affiliate-bio">We offer pay tied to views and to engagement — for example, verified Discord joins through your creator link. Use View current campaigns below for live numbers.</p>
+        <h2 class="affiliate-card-title">Requirements</h2>
+        <ul class="affiliate-bio" style="padding-left: 1.25rem; margin-bottom: 1rem">
+          <li>Original content; disclosure per law and platform rules.</li>
+          <li>No harassment, slurs, or deceptive claims.</li>
+          <li>Read and accept the Creator Campaign Participation Agreement linked in the application.</li>
+        </ul>
+        <div class="hub-links">
+          <a href="https://forms.gle/yHS74u4cedwerLe58" class="hub-btn hub-btn--primary" target="_blank" rel="noopener noreferrer" id="apply-link">Apply now</a>
+          <a href="/campaigns.html" class="hub-btn hub-btn--outline">View current campaigns</a>
+        </div>
+        <p class="affiliate-bio" style="margin-top: 1rem; font-size: 0.9rem; color: var(--gray)">Applying does not guarantee acceptance.</p>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <a href="https://thetradingcircle.org/disclaimer.html">Disclaimer</a>
+    <span>© <span id="year"></span> The Trading Circle</span>
+  </footer>
+
+  <script src="/js/site-nav.js"></script>
+  <script src="/js/affiliates-tabs.js"></script>
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+    fetch('/api/campaigns')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var u = (data.meta && data.meta.apply_form_url) || 'https://forms.gle/yHS74u4cedwerLe58';
+        var a = document.getElementById('apply-link');
+        if (a) a.href = u;
+      })
+      .catch(function () {});
+    fetch('https://thetradingcircle.org/api/config.json')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (c) {
+        if (c && c.discordInviteUrl) {
+          var u = c.discordInviteUrl;
+          var btn = document.getElementById('join-discord-btn');
+          if (btn) btn.href = u;
+          var mob = document.getElementById('join-discord-btn-mob');
+          if (mob) mob.href = u;
+        }
+      })
+      .catch(function () {});
+  </script>
+</body>
+</html>

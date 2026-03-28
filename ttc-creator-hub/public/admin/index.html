@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Admin · Creator campaigns</title>
+  <link rel="stylesheet" href="/css/theme.css" />
+  <style>
+    .admin-wrap { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+    .login-box { max-width: 420px; margin: 3rem auto; padding: 1.5rem; border: 1px solid var(--border); border-radius: 12px; }
+    label { display: block; margin-bottom: 0.35rem; font-size: 0.88rem; color: var(--gray); }
+    input, textarea, select { width: 100%; padding: 0.55rem 0.65rem; margin-bottom: 1rem; background: #111; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font: inherit; }
+    textarea { min-height: 100px; resize: vertical; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 600px) { .row2 { grid-template-columns: 1fr; } }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 1rem; }
+    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--gray); font-weight: 600; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-bottom: 1.5rem; }
+    .err { color: #f66; font-size: 0.9rem; margin-top: 0.5rem; }
+    .ok { color: #6dffc7; font-size: 0.9rem; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <span class="site-logo">TTC · Campaign admin</span>
+    <nav class="site-nav">
+      <a href="/campaigns.html" target="_blank">View public page</a>
+      <button type="button" class="btn btn-secondary" id="logout-btn" style="display: none">Lock</button>
+    </nav>
+  </header>
+
+  <div id="screen-login" class="admin-wrap">
+    <div class="login-box">
+      <h1 style="margin-bottom: 1rem">Dashboard login</h1>
+      <p id="remote-banner" class="muted" style="margin-bottom: 1rem; font-size: 0.88rem; line-height: 1.45">
+        Loading…
+      </p>
+      <p class="muted" style="margin-bottom: 1rem">Enter the same <code>ADMIN_KEY</code> as the server you are saving to (local <code>.env</code> or the live server’s <code>.env</code> if using <code>REMOTE_API_URL</code>). Never share this page publicly.</p>
+      <label for="admin-key">Admin key</label>
+      <input id="admin-key" type="password" autocomplete="current-password" placeholder="Paste admin key" />
+      <button type="button" class="btn btn-primary" id="login-btn" disabled>Unlock</button>
+      <p id="login-msg" class="err"></p>
+    </div>
+  </div>
+
+  <div id="screen-dash" class="admin-wrap" style="display: none">
+    <div class="toolbar">
+      <button type="button" class="btn btn-primary" id="new-btn">New campaign</button>
+      <button type="button" class="btn btn-secondary" id="reload-btn">Reload</button>
+      <span class="muted" id="save-status"></span>
+    </div>
+    <p id="dash-remote-note" class="muted">Saving writes <code>data/campaigns.json</code> on the server that handles the API (local or live).</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Status</th>
+          <th>Budget</th>
+          <th>Paid</th>
+          <th>Expires</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+
+    <div id="editor" style="display: none; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border)">
+      <h2 id="editor-title">Edit campaign</h2>
+      <input type="hidden" id="e-id" />
+      <div class="row2">
+        <div>
+          <label for="e-title">Title *</label>
+          <input id="e-title" />
+        </div>
+        <div>
+          <label for="e-status">Status</label>
+          <select id="e-status">
+            <option value="active">active</option>
+            <option value="upcoming">upcoming</option>
+            <option value="completed">completed</option>
+          </select>
+        </div>
+      </div>
+      <div class="row2">
+        <div>
+          <label for="e-budget">Budget ($)</label>
+          <input id="e-budget" type="number" min="0" step="1" />
+        </div>
+        <div>
+          <label for="e-paid">Paid out ($)</label>
+          <input id="e-paid" type="number" min="0" step="1" />
+        </div>
+      </div>
+      <label for="e-exp">Expiration (ISO or local datetime)</label>
+      <input id="e-exp" placeholder="2026-12-31T23:59:59" />
+      <label for="e-short">Short description (card)</label>
+      <input id="e-short" />
+      <label for="e-desc">Full description</label>
+      <textarea id="e-desc"></textarea>
+      <div class="row2">
+        <div>
+          <label for="e-per1k">$ per 1k views</label>
+          <input id="e-per1k" type="number" min="0" step="0.01" />
+        </div>
+        <div>
+          <label for="e-payment">Payment note</label>
+          <input id="e-payment" placeholder="Paid via …" />
+        </div>
+      </div>
+      <label for="e-tiers">Join tiers (JSON array)</label>
+      <textarea id="e-tiers" placeholder='[{"label":"25+ verified joins","amount":100}]'></textarea>
+      <label for="e-rules">Rules</label>
+      <textarea id="e-rules"></textarea>
+      <div class="stack-btns">
+        <button type="button" class="btn btn-primary" id="save-btn">Save / update</button>
+        <button type="button" class="btn btn-secondary" id="cancel-btn">Cancel</button>
+        <button type="button" class="btn btn-secondary" id="delete-btn" style="border-color: #a44">Delete campaign</button>
+      </div>
+      <p id="editor-msg" class="err"></p>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var keyStorage = 'ttc_creator_admin_key';
+      /** Set from GET /api/config on this machine — when non-empty, saves go to that origin */
+      var API_BASE = '';
+
+      /** Same rules as server: BOM, quotes, accidental full .env line */
+      function normalizeKeyInput(raw) {
+        var k = String(raw || '')
+          .replace(/\r/g, '')
+          .trim()
+          .replace(/^\uFEFF/, '');
+        if (/^admin_key\s*=/i.test(k)) k = k.replace(/^admin_key\s*=\s*/i, '').trim();
+        if (k.length >= 2 && k.charAt(0) === '"' && k.charAt(k.length - 1) === '"') k = k.slice(1, -1).trim();
+        if (k.length >= 2 && k.charAt(0) === "'" && k.charAt(k.length - 1) === "'") k = k.slice(1, -1).trim();
+        return k;
+      }
+
+      function getKey() {
+        return sessionStorage.getItem(keyStorage) || '';
+      }
+      function setKey(k) {
+        if (k) sessionStorage.setItem(keyStorage, k);
+        else sessionStorage.removeItem(keyStorage);
+      }
+
+      function apiUrl(path) {
+        if (!API_BASE) return path;
+        return API_BASE.replace(/\/$/, '') + path;
+      }
+
+      var screenLogin = document.getElementById('screen-login');
+      var screenDash = document.getElementById('screen-dash');
+      var tbody = document.getElementById('tbody');
+
+      function authHeaders() {
+        var k = getKey();
+        return { 'Content-Type': 'application/json', 'X-Admin-Key': k };
+      }
+
+      var lastCfg = {};
+
+      function applyRemoteBanner() {
+        var el = document.getElementById('remote-banner');
+        var note = document.getElementById('dash-remote-note');
+        var len = typeof lastCfg.adminKeyLength === 'number' ? lastCfg.adminKeyLength : null;
+        var configured = lastCfg.adminKeyConfigured;
+        var lenLine =
+          len !== null
+            ? ' Running server reports ADMIN_KEY length ' +
+              len +
+              ' (should match `npm run check-env`).'
+            : '';
+        if (configured === false || len === 0) {
+          lenLine +=
+            ' If length is 0, stop the server (Ctrl+C) and run `npm start` again from the ttc-creator-hub folder.';
+        }
+        if (el) {
+          el.textContent = '';
+          if (API_BASE) {
+            el.appendChild(document.createTextNode('Unlock checks ' + API_BASE + ' — use that server’s ADMIN_KEY. '));
+          } else {
+            el.appendChild(
+              document.createTextNode(
+                'Unlock checks this PC only (same as `npm run test-login`). ' + lenLine + ' '
+              )
+            );
+          }
+          el.appendChild(
+            document.createTextNode(
+              API_BASE
+                ? 'Save/Update goes to ' + API_BASE + '.'
+                : 'Add REMOTE_API_URL to .env to write the live site from here.'
+            )
+          );
+        }
+        if (note) {
+          note.textContent = API_BASE
+            ? 'Saving updates campaigns on ' + API_BASE + ' immediately (no git push).'
+            : 'Saving writes data/campaigns.json on this machine immediately.';
+        }
+      }
+
+      fetch('/api/config')
+        .then(function (r) {
+          return r.json();
+        })
+        .then(function (cfg) {
+          lastCfg = cfg || {};
+          API_BASE = (cfg.remoteApiBase || '').replace(/\/$/, '');
+          applyRemoteBanner();
+        })
+        .catch(function () {
+          applyRemoteBanner();
+        })
+        .finally(function () {
+          var btn = document.getElementById('login-btn');
+          if (btn) btn.disabled = false;
+          if (getKey()) showDash();
+        });
+
+      function showDash() {
+        screenLogin.style.display = 'none';
+        screenDash.style.display = 'block';
+        document.getElementById('logout-btn').style.display = 'inline-flex';
+        loadTable();
+      }
+
+      function showLogin() {
+        setKey('');
+        screenLogin.style.display = 'block';
+        screenDash.style.display = 'none';
+        document.getElementById('logout-btn').style.display = 'none';
+      }
+
+      document.getElementById('login-btn').onclick = function () {
+        var k = normalizeKeyInput(document.getElementById('admin-key').value);
+        document.getElementById('login-msg').textContent = '';
+        if (!k) {
+          document.getElementById('login-msg').textContent = 'Enter key';
+          return;
+        }
+        setKey(k);
+        fetch(apiUrl('/api/admin/ping'), { headers: authHeaders() })
+          .then(function (r) {
+            return r
+              .json()
+              .catch(function () {
+                return {};
+              })
+              .then(function (body) {
+                return { ok: r.ok, status: r.status, body: body };
+              });
+          })
+          .then(function (x) {
+            if (x.ok) showDash();
+            else {
+              setKey('');
+              var msg =
+                (x.body && x.body.error) ||
+                ('HTTP ' + x.status + (x.status === 401 ? ' — key does not match server .env' : ''));
+              if (x.status === 401 && API_BASE) {
+                msg +=
+                  ' If you are using the key from this PC’s .env only, remove REMOTE_API_URL from .env, restart npm start, and try again.';
+              } else if (x.status === 401 && !API_BASE) {
+                msg +=
+                  ' Paste only the secret after ADMIN_KEY= (one line). Or run: npm run check-env';
+              }
+              document.getElementById('login-msg').textContent = msg;
+            }
+          })
+          .catch(function () {
+            setKey('');
+            document.getElementById('login-msg').textContent =
+              'Cannot reach API — use http://localhost:' +
+              (location.port || '3333') +
+              '/admin/ while npm start is running (not Live Server or opening the HTML file directly).';
+          });
+      };
+
+      document.getElementById('logout-btn').onclick = showLogin;
+
+      function loadTable() {
+        fetch(apiUrl('/api/campaigns'))
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (data) {
+            var rows = data.campaigns || [];
+            tbody.innerHTML = rows
+              .map(function (c) {
+                return (
+                  '<tr><td>' +
+                  esc(c.title) +
+                  '</td><td>' +
+                  esc(c.status) +
+                  '</td><td>' +
+                  money(c.budget) +
+                  '</td><td>' +
+                  money(c.paid_out) +
+                  '</td><td>' +
+                  esc(c.expiration || '—') +
+                  '</td><td><button type="button" class="btn btn-secondary" data-edit="' +
+                  esc(c.id) +
+                  '">Edit</button></td></tr>'
+                );
+              })
+              .join('');
+            tbody.querySelectorAll('[data-edit]').forEach(function (btn) {
+              btn.onclick = function () {
+                openEditor(rows.find(function (x) {
+                  return x.id === btn.getAttribute('data-edit');
+                }));
+              };
+            });
+          });
+      }
+
+      function esc(s) {
+        var d = document.createElement('div');
+        d.textContent = s == null ? '' : String(s);
+        return d.innerHTML;
+      }
+      function money(n) {
+        n = Number(n);
+        if (Number.isNaN(n)) return '$0';
+        return '$' + Math.round(n);
+      }
+
+      var editor = document.getElementById('editor');
+
+      function openEditor(c) {
+        editor.style.display = 'block';
+        document.getElementById('editor-msg').textContent = '';
+        if (!c) {
+          document.getElementById('editor-title').textContent = 'New campaign';
+          document.getElementById('e-id').value = '';
+          document.getElementById('e-title').value = '';
+          document.getElementById('e-status').value = 'active';
+          document.getElementById('e-budget').value = '1000';
+          document.getElementById('e-paid').value = '0';
+          document.getElementById('e-exp').value = '';
+          document.getElementById('e-short').value = '';
+          document.getElementById('e-desc').value = '';
+          document.getElementById('e-per1k').value = '0';
+          document.getElementById('e-payment').value = 'Paid per campaign agreement after verified metrics.';
+          document.getElementById('e-tiers').value = '[{"label":"Example tier","amount":50}]';
+          document.getElementById('e-rules').value = 'Original content only. No bots.';
+          document.getElementById('delete-btn').style.display = 'none';
+          return;
+        }
+        document.getElementById('editor-title').textContent = 'Edit campaign';
+        document.getElementById('e-id').value = c.id;
+        document.getElementById('e-title').value = c.title;
+        document.getElementById('e-status').value = c.status;
+        document.getElementById('e-budget').value = c.budget;
+        document.getElementById('e-paid').value = c.paid_out;
+        document.getElementById('e-exp').value = c.expiration || '';
+        document.getElementById('e-short').value = c.short_description || '';
+        document.getElementById('e-desc').value = c.description || '';
+        document.getElementById('e-per1k').value = c.payout_per_1k_views || 0;
+        document.getElementById('e-payment').value = c.payment_note || '';
+        document.getElementById('e-tiers').value = JSON.stringify(c.join_payout_tiers || [], null, 2);
+        document.getElementById('e-rules').value = c.rules || '';
+        document.getElementById('delete-btn').style.display = 'inline-flex';
+      }
+
+      document.getElementById('new-btn').onclick = function () {
+        openEditor(null);
+        editor.scrollIntoView({ behavior: 'smooth' });
+      };
+      document.getElementById('reload-btn').onclick = loadTable;
+      document.getElementById('cancel-btn').onclick = function () {
+        editor.style.display = 'none';
+      };
+
+      document.getElementById('save-btn').onclick = function () {
+        document.getElementById('editor-msg').textContent = '';
+        var tiers;
+        try {
+          tiers = JSON.parse(document.getElementById('e-tiers').value || '[]');
+          if (!Array.isArray(tiers)) throw new Error('tiers must be array');
+        } catch (e) {
+          document.getElementById('editor-msg').textContent = 'Join tiers must be valid JSON array';
+          return;
+        }
+        var payload = {
+          title: document.getElementById('e-title').value.trim(),
+          status: document.getElementById('e-status').value,
+          budget: Number(document.getElementById('e-budget').value),
+          paid_out: Number(document.getElementById('e-paid').value),
+          expiration: document.getElementById('e-exp').value.trim() || null,
+          short_description: document.getElementById('e-short').value.trim(),
+          description: document.getElementById('e-desc').value.trim(),
+          payout_per_1k_views: Number(document.getElementById('e-per1k').value),
+          join_payout_tiers: tiers,
+          rules: document.getElementById('e-rules').value.trim(),
+          payment_note: document.getElementById('e-payment').value.trim(),
+        };
+        var id = document.getElementById('e-id').value;
+        var path = id ? '/api/campaigns/' + encodeURIComponent(id) : '/api/campaigns';
+        var url = apiUrl(path);
+        var method = id ? 'PATCH' : 'POST';
+        fetch(url, { method: method, headers: authHeaders(), body: JSON.stringify(payload) })
+          .then(function (r) {
+            return r.json().then(function (j) {
+              return { ok: r.ok, j: j };
+            });
+          })
+          .then(function (x) {
+            if (!x.ok) {
+              document.getElementById('editor-msg').textContent = x.j.error || 'Save failed';
+              return;
+            }
+            document.getElementById('save-status').textContent = 'Saved ' + new Date().toLocaleTimeString();
+            setTimeout(function () {
+              document.getElementById('save-status').textContent = '';
+            }, 3000);
+            editor.style.display = 'none';
+            loadTable();
+          })
+          .catch(function () {
+            document.getElementById('editor-msg').textContent = 'Network error';
+          });
+      };
+
+      document.getElementById('delete-btn').onclick = function () {
+        var id = document.getElementById('e-id').value;
+        if (!id || !confirm('Delete this campaign permanently?')) return;
+        fetch(apiUrl('/api/campaigns/' + encodeURIComponent(id)), { method: 'DELETE', headers: authHeaders() })
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function () {
+            editor.style.display = 'none';
+            loadTable();
+          });
+      };
+    })();
+  </script>
+</body>
+</html>
