@@ -2,10 +2,22 @@ const { Client, GatewayIntentBits, Partials } = require('discord.js');
 const config = require('./config');
 const db = require('./src/db');
 const baseline = require('./src/baseline');
-const { getHandle, checkSimilarity } = require('./src/detect');
+const {
+  getHandle,
+  checkSimilarity,
+  checkDisplayNameImpersonation,
+  getEffectiveDisplayName,
+  getGlobalDisplayName,
+} = require('./src/detect');
 const { banAndLog } = require('./src/actions');
 const { registerCommands, handleInteraction } = require('./src/commands');
-const { runMessageMod } = require('./src/messageMod');
+let runMessageMod = async () => {};
+try {
+  const mod = require('./src/messageMod');
+  runMessageMod = mod.runMessageMod;
+} catch (e) {
+  console.warn('[anti-impersonator] messageMod not loaded (file missing?), message moderation disabled');
+}
 
 const client = new Client({
   intents: [
@@ -38,8 +50,33 @@ async function runDetection(member) {
   const avatarUrl = member.user?.displayAvatarURL?.({ size: 128 })?.replace(/\?.*$/, '') ?? '';
   const protectedHandles = baseline.getProtectedHandles();
   const result = checkSimilarity(handle, avatarUrl, protectedHandles, threshold());
-  if (!result.match) return;
-  await banAndLog(client, member, result);
+  if (result.match) {
+    await banAndLog(client, member, { ...result, kind: 'username' });
+    return;
+  }
+  if (db.getSetting('display_match') !== 'false') {
+    let bio = '';
+    try {
+      const fu = await member.user.fetch({ force: true });
+      bio = typeof fu.bio === 'string' ? fu.bio : '';
+    } catch (_) {}
+    const displayRes = checkDisplayNameImpersonation(
+      {
+        handle,
+        displayName: getEffectiveDisplayName(member),
+        globalName: getGlobalDisplayName(member.user),
+        avatarUrl,
+        bio,
+      },
+      protectedHandles,
+      {
+        displayThreshold: db.getSetting('display_threshold') || '1',
+        displayMinLen: db.getSetting('display_min_len') || '5',
+        displayHandleMax: db.getSetting('display_handle_max') || '3',
+      }
+    );
+    if (displayRes.match) await banAndLog(client, member, displayRes);
+  }
 }
 
 client.once('ready', async () => {
@@ -66,17 +103,39 @@ client.on('guildMemberAdd', async (member) => {
 });
 client.on('guildMemberUpdate', async (oldMember, newMember) => {
   if (newMember.guild.id !== config.GUILD_ID) return;
-  const hadRole = oldMember.roles.cache.has(config.OWNER_ROLE_ID) || oldMember.roles.cache.has(config.DEVELOPER_ROLE_ID) || oldMember.roles.cache.has(config.ANALYST_ROLE_ID);
-  const hasRole = newMember.roles.cache.has(config.OWNER_ROLE_ID) || newMember.roles.cache.has(config.DEVELOPER_ROLE_ID) || newMember.roles.cache.has(config.ANALYST_ROLE_ID);
-  if (hadRole !== hasRole) await baseline.refresh(client);
-  if (oldMember.user.username !== newMember.user.username) await runDetection(newMember);
+  const prot = new Set(config.PROTECTED_ROLE_IDS);
+  const hadProtected = [...oldMember.roles.cache.keys()].some((id) => prot.has(id));
+  const hasProtected = [...newMember.roles.cache.keys()].some((id) => prot.has(id));
+  if (hadProtected !== hasProtected) await baseline.refresh(client);
+
+  const isProt = baseline.isProtectedUserId(newMember.id);
+  const identityChanged =
+    oldMember.displayName !== newMember.displayName ||
+    oldMember.nickname !== newMember.nickname ||
+    oldMember.user.avatar !== newMember.user.avatar ||
+    oldMember.user.globalName !== newMember.user.globalName ||
+    oldMember.user.username !== newMember.user.username;
+
+  if (isProt && identityChanged) {
+    await baseline.refresh(client);
+    return;
+  }
+  if (!isProt && identityChanged) await runDetection(newMember);
 });
 client.on('userUpdate', async (oldUser, newUser) => {
-  if (oldUser.username === newUser.username) return;
   const guild = await client.guilds.fetch(config.GUILD_ID).catch(() => null);
   if (!guild) return;
   const member = await guild.members.fetch(newUser.id).catch(() => null);
   if (!member) return;
+  const changed =
+    oldUser.username !== newUser.username ||
+    oldUser.avatar !== newUser.avatar ||
+    oldUser.globalName !== newUser.globalName;
+  if (!changed) return;
+  if (baseline.isProtectedUserId(newUser.id)) {
+    await baseline.refresh(client);
+    return;
+  }
   await runDetection(member);
 });
 client.on('interactionCreate', (interaction) => handleInteraction(client, interaction));
@@ -86,10 +145,13 @@ client.on('messageCreate', async (msg) => {
 });
 
 function start() {
-  client.login(config.DISCORD_BOT_TOKEN).catch((e) => {
-    console.error('[anti-impersonator] Login failed', e);
-    process.exit(1);
-  });
+  const tryLogin = () => {
+    client.login(config.DISCORD_BOT_TOKEN).catch((e) => {
+      console.error('[anti-impersonator] Login failed', e.message || e);
+      setTimeout(tryLogin, 60_000);
+    });
+  };
+  tryLogin();
 }
 
 module.exports = { client, start };

@@ -17,6 +17,24 @@ function getDb() {
   return db;
 }
 
+function migrateProtectedCacheColumns(database) {
+  const cols = new Set(
+    database.prepare('PRAGMA table_info(protected_cache)').all().map((c) => c.name)
+  );
+  if (!cols.has('display_name')) {
+    database.exec("ALTER TABLE protected_cache ADD COLUMN display_name TEXT DEFAULT ''");
+  }
+  if (!cols.has('global_name')) {
+    database.exec("ALTER TABLE protected_cache ADD COLUMN global_name TEXT DEFAULT ''");
+  }
+  if (!cols.has('avatar_url')) {
+    database.exec("ALTER TABLE protected_cache ADD COLUMN avatar_url TEXT DEFAULT ''");
+  }
+  if (!cols.has('bio')) {
+    database.exec("ALTER TABLE protected_cache ADD COLUMN bio TEXT DEFAULT ''");
+  }
+}
+
 function initSchema(database) {
   database.exec(`
     CREATE TABLE IF NOT EXISTS settings (
@@ -35,11 +53,28 @@ function initSchema(database) {
       updated_at INTEGER NOT NULL
     );
   `);
+  migrateProtectedCacheColumns(database);
   const stmt = database.prepare("SELECT 1 FROM settings WHERE key = 'threshold'");
   if (!stmt.get()) {
     database.prepare("INSERT INTO settings (key, value) VALUES ('threshold', '1')").run();
     database.prepare("INSERT INTO settings (key, value) VALUES ('enforce', 'true')").run();
     database.prepare("INSERT INTO settings (key, value) VALUES ('dry_run', 'false')").run();
+    database.prepare("INSERT INTO settings (key, value) VALUES ('message_mod', 'true')").run();
+  }
+  const msgModStmt = database.prepare("SELECT 1 FROM settings WHERE key = 'message_mod'");
+  if (!msgModStmt.get()) {
+    database.prepare("INSERT INTO settings (key, value) VALUES ('message_mod', 'true')").run();
+  }
+  const displayStmt = database.prepare("SELECT 1 FROM settings WHERE key = 'display_match'");
+  if (!displayStmt.get()) {
+    database.prepare("INSERT INTO settings (key, value) VALUES ('display_match', 'true')").run();
+    database.prepare("INSERT INTO settings (key, value) VALUES ('display_threshold', '1')").run();
+    database.prepare("INSERT INTO settings (key, value) VALUES ('display_min_len', '5')").run();
+    database.prepare("INSERT INTO settings (key, value) VALUES ('display_handle_max', '3')").run();
+  }
+  const displayHandleStmt = database.prepare("SELECT 1 FROM settings WHERE key = 'display_handle_max'");
+  if (!displayHandleStmt.get()) {
+    database.prepare("INSERT INTO settings (key, value) VALUES ('display_handle_max', '3')").run();
   }
 }
 
@@ -77,17 +112,35 @@ function removeManualProtected(userId) {
 }
 
 function saveProtectedCache(entries) {
-  const db = getDb();
+  const database = getDb();
   const now = Date.now();
-  const run = db.prepare('INSERT OR REPLACE INTO protected_cache (user_id, handle, updated_at) VALUES (?, ?, ?)');
-  const trans = db.transaction((list) => {
-    for (const { userId, handle } of list) run.run(userId, handle, now);
+  const run = database.prepare(
+    `INSERT OR REPLACE INTO protected_cache
+      (user_id, handle, updated_at, display_name, global_name, avatar_url, bio)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  );
+  const trans = database.transaction((list) => {
+    for (const e of list) {
+      run.run(
+        e.userId,
+        e.handle,
+        now,
+        e.displayName || '',
+        e.globalName || '',
+        e.avatarUrl || '',
+        e.bio || ''
+      );
+    }
   });
   trans(entries);
 }
 
 function loadProtectedCache() {
-  return getDb().prepare('SELECT user_id, handle FROM protected_cache').all();
+  return getDb()
+    .prepare(
+      'SELECT user_id, handle, display_name, global_name, avatar_url, bio FROM protected_cache'
+    )
+    .all();
 }
 
 module.exports = {
